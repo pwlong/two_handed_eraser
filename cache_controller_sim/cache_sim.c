@@ -19,7 +19,7 @@ u8  t_flag = 0;
 
 // statistics counters
 int reads, writes, stream_ins, stream_outs, hits, misses,\
-	read_hits, write_hits, cycles, cycles_no_cache;
+	read_hits, write_hits, cycles;
 
 
 void main(int argc, char *argv[])
@@ -227,6 +227,7 @@ void add_cache_line(int line, int set, int tag, char * cmd)
 	// update statistics
 	cycles =+ 51;
 	stream_ins ++;
+	misses ++;
 	
 	
 	ptr 	        = (cache_line *) malloc(sizeof(cache_line));
@@ -234,10 +235,9 @@ void add_cache_line(int line, int set, int tag, char * cmd)
 	ptr->LRU_bits   = 0;
 	ptr->valid_bit  = 1;
 	
-	if (strcmp(cmd,"w") == MATCH)     //if write then set dirty bit 
-		ptr->dirty_bit = 1;
-	else
-	    ptr->dirty_bit = 0;
+	//if write then set dirty bit
+	if (strcmp(cmd,"w") == MATCH)	{ptr->dirty_bit = 1;}
+	else							{ptr->dirty_bit = 0;}
 	
 	cache[set][line]= ptr;
 	
@@ -283,7 +283,7 @@ void replace_cache_line (int set, int tag, char *cmd)
 	
 	// must do a stream-in operation, update stats
 	cycles += 50;
-	stream_outs ++;
+	stream_ins ++;
 	
 	if (strcmp(cmd,"w") == MATCH)    //set dirty bit in case of 'w'
 		tmp->dirty_bit = 1;
@@ -329,6 +329,6 @@ void show_stats()
 	printf("\t\t=  Read Hits:\t\t\t%d\t=\n", read_hits);
 	printf("\t\t=  Write Hits:\t\t\t%d\t=\n", write_hits);
 	printf("\t\t=  Total Cycles with Cache:\t%d\t=\n", cycles);
-	printf("\t\t=  Total Cycles if no Cache:\t%d\t=\n", cycles_no_cache);
+	printf("\t\t=  Total Cycles if no Cache:\t%d\t=\n", (reads+writes)*50);
 	printf("\t\t=========================================\n\n");
 }
