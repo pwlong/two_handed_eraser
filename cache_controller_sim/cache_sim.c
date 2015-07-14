@@ -1,65 +1,79 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include "cache_sim.h"
 
-#define SETS  1024
-#define LINES 4
-#define SET_MASK  0x00007FE0
-#define SET_SHIFT 5
-#define TAG_MASK  0xFFFF8000
-#define TAG_SHIFT 15
 
-#define MATCH 0
-#define TRUE  1
-#define FALSE 0
-typedef struct {
-    int valid_bit;
-	int dirty_bit;
-	int LRU_bits;
-	int tag;
-} cache_line;
 
-//function prototype
-void init_cache();
-void cache_search(int, char*);
-void add_cache_line(int, int,int, char*);
-void replace_cache_line(int,int,char*);
 
-cache_line* cache[SETS][LINES];
+
+cache_line *cache[SETS][LINES];
 char *cmd;
 int  addr;
 int  addr_need;                 //toggle variable between r/w and addr
 
-//declare timing variable
-int total_exec_cycle;
+// some flags that might get set in response to debug instructions in the input stream
+u8	d_flag = 0;
+u8  t_flag = 0;
+	
+
+// statistics counters
+int reads, writes, stream_ins, stream_outs, hits, misses,\
+	read_hits, write_hits, cycles, cycles_no_cache;
 
 
-void main()
+void main(int argc, char *argv[])
 {   
     FILE *fp;
+	FILE *trace_file_handle;
     
-    cache_line* ptr;
+    cache_line *ptr;
 	
-	char *inst;                 //pointer of string that read from command file
+	char inst[15];				//string read from command file
+	char filename[100];			//command file's filename
+	
+	
+	
+	
 	
     init_cache();
+	
+	
 		
-    //NEED TO FIGURE OUT THE WAY TO ENTER THE PATH AND NAME FROM STDIN
-	fp = fopen ("my_text.txt","r");
+    // if filename given on commandline use it otherwise use default filename
+	if (argc == 2)	{strcpy(filename, argv[1]);}
+	else			{strcpy(filename, "my_text.txt");}
+	
+	fp = fopen (filename,"r");
+	if (NULL == fp){
+		fprintf (stderr, "Failed to open input file. This is fatal!\n");
+		exit(-1);
+	}
+	
+	// open a file for recording a tracefile
+	trace_file_handle = fopen("trace_file.log", "w");
+	if (NULL == trace_file_handle) {
+		fprintf (stderr, "Failed to open command history file for writing\n");
+		exit(-1);
+	}
+
 	
 	//read instruction 
 	while (fscanf(fp,"%s", inst) != EOF)
 	{
+
         // the following codes is to parse the command file
     	if ((strcmp(inst, "w") == MATCH) ||      //detect w instruction
 		    (strcmp(inst, "W") == MATCH) )
-		{	
+		{
 		    if (addr_need == TRUE) 
 			{   
-			    printf("There is invalid instruction sequence\n");
+			    fprintf(stderr, "Invalid instruction sequence read from input file:");
+				fprintf(stderr, "expected address, got %s\n", inst);
 				exit(-1);
 			}	
 			addr_need = TRUE;
+			writes++;							// update stats
 			cmd       =  "w";
 		}
 		//detect Read instruction	
@@ -68,10 +82,12 @@ void main()
 		{		 
 		    if (addr_need == TRUE)             //check for correct cmd sequence
 			{   
-			    printf("There is invalid instruction sequence\n");
+			    fprintf(stderr, "Invalid instruction sequence read from input file:");
+				fprintf(stderr, "expected address, got %s\n", inst);
 				exit(-1);
 			}
 			addr_need  = TRUE;
+			reads++;							// update stats
 			cmd        = "r";
 		}
 		else if ((strcmp (inst, "-v") == MATCH) ||  //detect the debug command-v
@@ -79,7 +95,8 @@ void main()
 		{
 		    if (addr_need == TRUE)                 //debug must not occurs
 			{
-			    printf("The memory address must occurs here \n");
+			    fprintf(stderr, "Invalid instruction sequence read from input file:");
+				fprintf(stderr, "expected address, got %s\n", inst);
 				exit(-1);
 			}
 			printf("Cache Simulator Ver 0.1\n"); 
@@ -90,28 +107,31 @@ void main()
 		{
 			if (addr_need == TRUE)                 //debug must not occurs
 			{
-			    printf("The memory address must occurs here \n");
+			    fprintf(stderr, "Invalid instruction sequence read from input file:");
+				fprintf(stderr, "expected address, got %s\n", inst);
 				exit(-1);
 			}
-			printf("Detect debug command T - Not know what to do with it\n"); 
-			
+			//printf("Detect debug command T - Not know what to do with it\n"); 
+			if (!t_flag) {t_flag = 1;}
 		}
 		else if ((strcmp (inst, "-d") == MATCH) ||  //detect the debug command-T
                  (strcmp (inst, "-D") == MATCH)) 		
 		{
 			if (addr_need == TRUE)                  //check for correct cmd sequence
 			{   
-			    printf("There is invalid instruction sequence\n");
+			    fprintf(stderr, "Invalid instruction sequence read from input file:");
+				fprintf(stderr, "expected address, got %s\n", inst);
 				exit(-1);
 			}
-			printf("Detect debug command D - define the function later\n"); 
+			//printf("Detect debug command D - define the function later\n"); 
+			if (!d_flag) {d_flag = 1;}
 			
 		}
 		else if (strncmp (inst,"0x",2) == MATCH)    //detect address
 		{
 		    if (strlen(inst) > 10)                  //address with > 32 bits
 			{                                       //print out error and exits
-				printf ("The memory address is invalid %s\n", inst);
+				fprintf (stderr, "The memory address is invalid: got %s\n", inst);
 				exit(-1);
 			}
             
@@ -119,22 +139,22 @@ void main()
 			{
 				addr_need = FALSE;
 				addr      = (int) strtol(inst,NULL,16);
-				printf (" addr : 0x%x", addr);
+				if(t_flag) {fprintf (stdout, "%s 0x%x\n", cmd, addr);}
 				cache_search(addr,cmd);
 			}
 			else  
 			{
-				printf("There is invalid instruction sequence \n");
+				fprintf(stderr, "Invalid instruction sequence: got %s\n", inst);
 			    exit(-1);
 			}
 		}
-		else 
-		{
-			printf("There is invalid instruction \n");
-			exit (-1);
-		}
-	}			
+		
+	}		
+	
 	//int h = (int) strtol(str2,NULL,16);
+	
+	show_stats();
+	// TODO: Close the files we opened PWL
 }
 
 //the function is to initial cache to NULL
@@ -152,11 +172,10 @@ void cache_search( int address, char *cmd)
     unsigned int tag, set, i, hit;
     cache_line *tmp;	
 	
-	
-	printf(" Execute the cmd:  %s with addr 0x%x\n", cmd, addr);
 	set = (address & SET_MASK) >> SET_SHIFT;
 	tag = (address & TAG_MASK) >> TAG_SHIFT;
 	hit = FALSE;
+	
 	//search for hit or miss
 	for (i = 0; i < LINES; i++)
 	{   
@@ -166,36 +185,49 @@ void cache_search( int address, char *cmd)
 		    
 		    if (tmp->valid_bit == TRUE)  
 			{
-				if (tmp->tag   == tag)          //got hit
+				if (tmp->tag   == tag)		//got hit
 				{
-					total_exec_cycle++;
+					cycles++;
+					hits++;
+					if ((strcmp(cmd, "w") == MATCH)){write_hits++;}
+					else 							 {read_hits++;}
 					hit  = TRUE;
+					// update LRU
+					// update history
+					// update stats
 					break;
 				}	
 			}	
 		}
-		else                               //when this statment executed then
-		{                                  //the miss occurs, fill the line of set              
-			add_cache_line(i,set,tag,cmd); //with new address.
+		else								//when this statment executed then
+		{									//the miss occurs, fill the line of set              
+			add_cache_line(i,set,tag,cmd);	//with new address.
 			hit  = TRUE;
 			break;
 		}	
     }
 	
-	if (hit == FALSE)                  //miss and all lines are occupied
-	    replace_cache_line(set,tag,cmd);   //call line eviction
-	
+	if (hit == FALSE){						//miss and all lines are occupied
+		misses++;
+		//if ('w' == cmd) {write_misses++;}
+		//else			{read_misses++;}
+	    replace_cache_line(set,tag,cmd);	//call line eviction
+	}
 }
 
 //add a cache line into cache
 void add_cache_line(int line, int set, int tag, char * cmd)
 {
-    cache_line* ptr;
+    cache_line *ptr;
 	int i;
 	
-	printf("add a cache line with set %x and tag %x\n", set, tag);
+	//printf("add a cache line with set %x and tag %x\n", set, tag);
 	
-	total_exec_cycle = total_exec_cycle + 51;
+	// adding a cache line so we must do a stream-in operation
+	// update statistics
+	cycles =+ 51;
+	stream_ins ++;
+	
 	
 	ptr 	        = (cache_line *) malloc(sizeof(cache_line));
 	ptr->tag        = tag;
@@ -222,7 +254,7 @@ void replace_cache_line (int set, int tag, char *cmd)
 {    int i, line_evict;
      cache_line * tmp;
 	
-	total_exec_cycle = total_exec_cycle + 1;
+	cycles += 1;
 	
     //search for the LRU bit 
 	for ( i= 0; i < LINES; i++)
@@ -234,17 +266,25 @@ void replace_cache_line (int set, int tag, char *cmd)
 			break;
 		}	
 	}
-	printf("replace line occurs %d with LRU %d\n", i, tmp->LRU_bits); 
+	//printf("replace line occurs %d with LRU %d\n", i, tmp->LRU_bits); 
 	
 	//check dirty bit for write back
 	//only for timing
 	if (tmp->dirty_bit == 1){
-		total_exec_cycle = total_exec_cycle + 50;
-		printf("write back occurs\n");}
+		// must do a stream-out operation, update stats
+		//printf("write back occurs\n");
+		cycles += 50;
+		stream_outs ++;
+	}
 	
 	//replace the line with new tag, and update overhead bits
 	tmp->tag      = tag;             
 	tmp->LRU_bits = 0; 
+	
+	// must do a stream-in operation, update stats
+	cycles += 50;
+	stream_outs ++;
+	
 	if (strcmp(cmd,"w") == MATCH)    //set dirty bit in case of 'w'
 		tmp->dirty_bit = 1;
 	else
@@ -263,3 +303,32 @@ void replace_cache_line (int set, int tag, char *cmd)
 }
 
 
+
+// saves the command history to log file
+int log_command(FILE *fh, char *cmd, int addr)
+{
+	int rc = 0;
+	
+	rc = fprintf(fh, "%s 0x%x", cmd, addr);
+	if (0 > rc) {return 1;}
+	else		{return 0;}	
+}
+
+void show_stats()
+{
+	printf("\t\t=========================================\n");
+	printf("\t\t=    Final Simulation Statistics        =\n");
+	printf("\t\t=========================================\n");
+	printf("\t\t=  Total Mem Accesses:\t\t%d\t=\n", reads + writes);
+	printf("\t\t=  Reads:\t\t\t%d\t=\n", reads);
+	printf("\t\t=  Writes:\t\t\t%d\t=\n", writes);
+	printf("\t\t=  Stream-In Operations:\t%d\t=\n", stream_ins);
+	printf("\t\t=  Stream-Out Operations:\t%d\t=\n", stream_outs);
+	printf("\t\t=  Cache Hits:\t\t\t%d\t=\n", hits);
+	printf("\t\t=  Cache Misses:\t\t%d\t=\n", misses);
+	printf("\t\t=  Read Hits:\t\t\t%d\t=\n", read_hits);
+	printf("\t\t=  Write Hits:\t\t\t%d\t=\n", write_hits);
+	printf("\t\t=  Total Cycles with Cache:\t%d\t=\n", cycles);
+	printf("\t\t=  Total Cycles if no Cache:\t%d\t=\n", cycles_no_cache);
+	printf("\t\t=========================================\n\n");
+}

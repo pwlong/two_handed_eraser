@@ -1,5 +1,5 @@
 all:
-	gcc -g cache_sim.c
+	gcc -g cache_sim.c -o sim
 
 clean:
-	rm -f a.out
+	rm -f a.out sim *.log
