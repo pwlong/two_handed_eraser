@@ -266,7 +266,7 @@ void replace_cache_line (int set, int tag, char *cmd)
 			break;
 		}	
 	}
-	//printf("replace line occurs %d with LRU %d\n", i, tmp->LRU_bits); 
+	printf("!!!EVICTION FROM CACHE!!!replace line occurs %d with LRU %d\n", i, tmp->LRU_bits); 
 	
 	//check dirty bit for write back
 	//only for timing
@@ -278,6 +278,7 @@ void replace_cache_line (int set, int tag, char *cmd)
 	}
 	
 	//replace the line with new tag, and update overhead bits
+	
 	tmp->tag      = tag;             
 	tmp->LRU_bits = 0; 
 	
