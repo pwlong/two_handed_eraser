@@ -316,19 +316,19 @@ int log_command(FILE *fh, char *cmd, int addr)
 
 void show_stats()
 {
+	printf("\n\n\t\t=========================================\n");
+	printf("\t\t|     Final Simulation Statistics       |\n");
 	printf("\t\t=========================================\n");
-	printf("\t\t=    Final Simulation Statistics        =\n");
-	printf("\t\t=========================================\n");
-	printf("\t\t=  Total Mem Accesses:\t\t%d\t=\n", reads + writes);
-	printf("\t\t=  Reads:\t\t\t%d\t=\n", reads);
-	printf("\t\t=  Writes:\t\t\t%d\t=\n", writes);
-	printf("\t\t=  Stream-In Operations:\t%d\t=\n", stream_ins);
-	printf("\t\t=  Stream-Out Operations:\t%d\t=\n", stream_outs);
-	printf("\t\t=  Cache Hits:\t\t\t%d\t=\n", hits);
-	printf("\t\t=  Cache Misses:\t\t%d\t=\n", misses);
-	printf("\t\t=  Read Hits:\t\t\t%d\t=\n", read_hits);
-	printf("\t\t=  Write Hits:\t\t\t%d\t=\n", write_hits);
-	printf("\t\t=  Total Cycles with Cache:\t%d\t=\n", cycles);
-	printf("\t\t=  Total Cycles if no Cache:\t%d\t=\n", (reads+writes)*50);
+	printf("\t\t|  Total Mem Accesses:\t\t%d\t|\n", reads + writes);
+	printf("\t\t|  Reads:\t\t\t%d\t|\n", reads);
+	printf("\t\t|  Writes:\t\t\t%d\t|\n", writes);
+	printf("\t\t|  Stream-In Operations:\t%d\t|\n", stream_ins);
+	printf("\t\t|  Stream-Out Operations:\t%d\t|\n", stream_outs);
+	printf("\t\t|  Cache Hits:\t\t\t%d\t|\n", hits);
+	printf("\t\t|  Cache Misses:\t\t%d\t|\n", misses);
+	printf("\t\t|  Read Hits:\t\t\t%d\t|\n", read_hits);
+	printf("\t\t|  Write Hits:\t\t\t%d\t|\n", write_hits);
+	printf("\t\t|  Total Cycles with  Cache:\t%d\t|\n", cycles);
+	printf("\t\t|  Total Cycles if no Cache:\t%d\t|\n", (reads+writes)*50);
 	printf("\t\t=========================================\n\n");
 }
