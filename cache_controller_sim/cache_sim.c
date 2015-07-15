@@ -309,15 +309,7 @@ void replace_cache_line (int set, int tag, char *cmd)
 
 
 
-// saves the command history to log file
-int log_command(FILE *fh, char *cmd, int addr)
-{
-	int rc = 0;
-	
-	rc = fprintf(fh, "%s 0x%x", cmd, addr);
-	if (0 > rc) {return 1;}
-	else		{return 0;}	
-}
+
 
 void show_stats()
 {
