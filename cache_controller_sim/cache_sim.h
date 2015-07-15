@@ -1,3 +1,15 @@
+/*
+	ECE 587
+	Portland State University Summer 2015
+	Project 1: Cache simulator header file
+	
+	Jeff Nguyen <jqn@pdx.edu>
+	Paul Long	<paul@thelongs.ws>
+	
+
+*/
+
+
 #ifndef MAIN_HEADER
 #define MAIN_HEADER
 
@@ -41,7 +53,7 @@ struct cache_line{
 	hist_node	*head;
 };
 
-
+/*
 typedef struct {
 	char command;
 	u32	 address;
@@ -49,7 +61,7 @@ typedef struct {
 	u16  set;
 	u8   offset;
 } command;
-
+*/
 
 //function prototype
 void init_cache();
@@ -61,6 +73,6 @@ void show_dump();
 void add_history_node(cache_line*, char cmd);
 void show_hist(int, int);
 void free_mem();
-int  get_command();
+//int  get_command();
 
 #endif

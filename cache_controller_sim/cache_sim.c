@@ -1,3 +1,32 @@
+/*
+	ECE 587
+	Portland State University Summer 2015
+	Project 1: Cache simulator
+	
+	Jeff Nguyen <jqn@pdx.edu>
+	Paul Long	<paul@thelongs.ws>
+	
+	Simulates a blocking L1 data cache for a 32bit byte-addressable system with:
+		- cyclical distribution
+		- 1k sets
+		- 4-way (set associative)
+		- 4-byte integer words
+		- 32-bit cache line (and memory paragraph) 
+		- LRU replacement policy
+		- allocate on write
+		- memory accesses assumed to be 50 cycles
+		
+	Default input file is to be named "my_text.txt" this is used if no input file
+	is specified on the commandline. Default my be overridden by supplying an
+	input file on the commandline.
+	
+	Default output is directed to stdout, redirect on commanline if desired.
+	
+*/
+
+
+
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -229,8 +258,6 @@ void add_cache_line(int line, int set, int tag, char * cmd)
     cache_line *ptr;
 	int i;
 	
-	//printf("add a cache line with set %x and tag %x\n", set, tag);
-	
 	// adding a cache line so we must do a stream-in operation
 	// update statistics
 	cycles =+ 51;
@@ -247,14 +274,11 @@ void add_cache_line(int line, int set, int tag, char * cmd)
 	if (strcmp(cmd,"w") == MATCH)	{ptr->dirty_bit = 1;}
 	else							{ptr->dirty_bit = 0;}
 	
-	// add history information
+	// record history and save to cache
 	add_history_node(ptr, *cmd);
-	
-	// save new line to  cache
 	cache[set][line]= ptr;
 	
 	//inc other lines LRU
-	// JEFFFFFFFF DO WE STILL NEED THIS HERE????????????????????????????
 	for ( i= 0; i < line; i++)
 	{
 		ptr =  cache[set][i];
@@ -279,7 +303,6 @@ void replace_cache_line (int set, int tag, char *cmd)
 			break;
 		}	
 	}
-	//printf("!!!EVICTION FROM CACHE!!!replace line occurs %d with LRU %d\n", i, tmp->LRU_bits); 
 	
 	//check dirty bit for write back
 	//only for timing
@@ -291,7 +314,6 @@ void replace_cache_line (int set, int tag, char *cmd)
 	}
 	
 	//replace the line with new tag, and update overhead bits
-	
 	tmp->tag      = tag;             
 	tmp->LRU_bits = 0; 
 	
@@ -299,16 +321,17 @@ void replace_cache_line (int set, int tag, char *cmd)
 	cycles += 50;
 	stream_ins ++;
 	
-	if (strcmp(cmd,"w") == MATCH)    //set dirty bit in case of 'w'
+	//set dirty bit in case of 'w'
+	if (strcmp(cmd,"w") == MATCH)    
 		tmp->dirty_bit = 1;
 	else
 	    tmp->dirty_bit = 0;
 	
+	// record history and save to cache
 	add_history_node(tmp, *cmd);
 	cache[set][i] = tmp;
 	
 	//inc other lines LRU
-	// JEFFFFFFFF DO WE STILL NEED THIS HERE????????????????????????????
 	for ( i= 0; i < LINES; i++)
 	{
 		tmp  =  cache[set][i];
@@ -318,15 +341,7 @@ void replace_cache_line (int set, int tag, char *cmd)
 		}	
 	}
 }
-/*
-int get_command() {
-	char inst[15];
-	
-	if (fscanf(fp,"%s", inst) == EOF) (
-		
 
-}
-*/
 void free_mem(){
 	int i,j;
 	hist_node *current, *head;
