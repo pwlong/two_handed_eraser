@@ -194,13 +194,15 @@ void cache_search( int address, char *cmd)
 					    if (i != j){                                //avoid the hit line in set
 							tmp_LRU = cache[set][j];
 							if (tmp_LRU->LRU_bits < tmp->LRU_bits)    //incr only LRUbits of the lines that
-							                                          //is smaller then hit line LRU.
-							    tmp_LRU->LRU_bits++;  
+							{                                          //is smaller then hit line LRU.
+							    tmp_LRU->LRU_bits++; 
+								add_history_node(tmp_LRU, *cmd);
+							}			
 						}
 					}	
 					tmp->LRU_bits = 0;  //change LRU in hit line to zero
+					add_history_node(tmp, *cmd);
 					
-					// update history
 					// update stats
 					break;
 				}	
@@ -302,9 +304,12 @@ void replace_cache_line (int set, int tag, char *cmd)
 		tmp->dirty_bit = 1;
 	else
 	    tmp->dirty_bit = 0;
+	
+	add_history_node(tmp, *cmd);
 	cache[set][i] = tmp;
 	
 	//inc other lines LRU
+	// JEFFFFFFFF DO WE STILL NEED THIS HERE????????????????????????????
 	for ( i= 0; i < LINES; i++)
 	{
 		tmp  =  cache[set][i];
@@ -315,7 +320,6 @@ void replace_cache_line (int set, int tag, char *cmd)
 	}
 }
 
-
 void show_dump() {
 	int i, j;
 	
@@ -323,21 +327,35 @@ void show_dump() {
 		if (NULL == cache[i][0]) {
 			printf("Set %d is untouched\n", i);
 		} else {
-			printf("Set %d has the following history\n", i);
-		}
-		for (j=0; j<LINES; j++) {
-			if (NULL != cache[i][j]){
-				printf("\tV: %d D: %d L: %d T: %d\n",\
-						cache[i][j]->valid_bit,\
-						cache[i][j]->dirty_bit,\
-						cache[i][j]->LRU_bits,\
-						cache[i][j]->tag);
+			printf("Set %d has the following history:\n", i);
+			for (j=0; j<LINES; j++) {
+				if (NULL != cache[i][j]){
+					printf("  LINE #%2d:\n", j);
+					show_hist(i,j);
+				}
 			}
 		}
 	}
 }
 
-
+void show_hist(int set, int line) {
+	hist_node *head;
+	head = cache[set][line]->head;
+	
+	while (NULL != head) {
+		printf("\tV: %d\tD: %d\tL: %d\tT: %d\tCMD: %c\n",\
+				head->valid_bit,\
+				head->dirty_bit,\
+				head->LRU_bits,\
+				head->tag,\
+				head->cmd);
+				// should figure out how to show the cmd and address
+		// go to next record in llist
+		head = head->next;
+	}
+	printf("\n");
+}
+	
 void show_stats() {
 	printf("\n\n\t\t=========================================\n");
 	printf("\t\t|     Final Simulation Statistics       |\n");

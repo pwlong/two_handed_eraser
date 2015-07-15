@@ -57,6 +57,7 @@ void replace_cache_line(int, int, char*);
 void show_stats();
 void show_dump();
 void add_history_node(cache_line*, char cmd);
+void show_hist(int, int);
 
 
 #endif
