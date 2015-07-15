@@ -25,7 +25,6 @@ int reads, writes, stream_ins, stream_outs, hits, misses,\
 void main(int argc, char *argv[])
 {   
     FILE *fp;
-	FILE *trace_file_handle;
     
     cache_line *ptr;
 	
@@ -50,12 +49,6 @@ void main(int argc, char *argv[])
 		exit(-1);
 	}
 	
-	// open a file for recording a tracefile
-	trace_file_handle = fopen("trace_file.log", "w");
-	if (NULL == trace_file_handle) {
-		fprintf (stderr, "Failed to open command history file for writing\n");
-		exit(-1);
-	}
 
 	
 	//read instruction 
