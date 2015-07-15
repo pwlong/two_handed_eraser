@@ -169,8 +169,8 @@ void init_cache ()
 //the function to search for hit/miss
 void cache_search( int address, char *cmd)
 {
-    unsigned int tag, set, i, hit;
-    cache_line *tmp;	
+    unsigned int tag, set, i, j, hit;
+    cache_line *tmp, * tmp_LRU;	
 	
 	set = (address & SET_MASK) >> SET_SHIFT;
 	tag = (address & TAG_MASK) >> TAG_SHIFT;
@@ -190,9 +190,21 @@ void cache_search( int address, char *cmd)
 					cycles++;
 					hits++;
 					if ((strcmp(cmd, "w") == MATCH)){write_hits++;}
-					else 							 {read_hits++;}
+					else 							{read_hits++;}
 					hit  = TRUE;
-					// update LRU
+					printf("hit line %d\n", tmp->LRU_bits);
+					//update LRU
+					for (j = 0; j < LINES; j++) {
+					    if (i != j){                                //avoid the hit line in set
+							tmp_LRU = cache[set][j];
+							if (tmp_LRU->LRU_bits < tmp->LRU_bits)    //incr only LRUbits of the lines that
+							                                          //is smaller then hit line LRU.
+								printf("tmp_LRU_bit inc %d\n", tmp_LRU->LRU_bits);
+							    tmp_LRU->LRU_bits++;  
+						}
+					}	
+					tmp->LRU_bits = 0;  //change LRU in hit line to zero
+					
 					// update history
 					// update stats
 					break;
@@ -245,6 +257,7 @@ void add_cache_line(int line, int set, int tag, char * cmd)
 	for ( i= 0; i < line; i++)
 	{
 		ptr =  cache[set][i];
+		printf(" increment the cache line in add cache function %d\n", ptr->LRU_bits);
 		ptr->LRU_bits++;
 	}
 }
