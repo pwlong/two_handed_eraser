@@ -270,13 +270,13 @@ void replace_cache_line (int set, int tag, char *cmd)
 			break;
 		}	
 	}
-	printf("!!!EVICTION FROM CACHE!!!replace line occurs %d with LRU %d\n", i, tmp->LRU_bits); 
+	//printf("!!!EVICTION FROM CACHE!!!replace line occurs %d with LRU %d\n", i, tmp->LRU_bits); 
 	
 	//check dirty bit for write back
 	//only for timing
 	if (tmp->dirty_bit == 1){
 		// must do a stream-out operation, update stats
-		//printf("write back occurs\n");
+		// printf("write back occurs\n");
 		cycles += 50;
 		stream_outs ++;
 	}

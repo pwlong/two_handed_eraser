@@ -46,7 +46,6 @@ void init_cache();
 void cache_search(int, char*);
 void add_cache_line(int, int, int, char*);
 void replace_cache_line(int, int, char*);
-int  log_command(FILE *fh, char *cmd, int addr); // take file handle, command and address
 void show_stats();
 
 
