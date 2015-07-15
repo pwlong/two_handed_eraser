@@ -147,7 +147,10 @@ void main(int argc, char *argv[])
 	//int h = (int) strtol(str2,NULL,16);
 	
 	show_stats();
-	// TODO: Close the files we opened PWL
+	if (d_flag){show_dump();};
+	
+	// TODO: Close the files we opened
+	// TODO: free malloc'd memory
 }
 
 //the function is to initial cache to NULL
@@ -233,15 +236,18 @@ void add_cache_line(int line, int set, int tag, char * cmd)
 	stream_ins ++;
 	misses ++;
 	
-	
 	ptr 	        = (cache_line *) malloc(sizeof(cache_line));
 	ptr->tag        = tag;
 	ptr->LRU_bits   = 0;
 	ptr->valid_bit  = 1;
+	ptr->head		= NULL;
 	
 	//if write then set dirty bit
 	if (strcmp(cmd,"w") == MATCH)	{ptr->dirty_bit = 1;}
 	else							{ptr->dirty_bit = 0;}
+	
+	add_history_node(ptr, *cmd);
+	
 	
 	cache[set][line]= ptr;
 	
@@ -308,11 +314,11 @@ void replace_cache_line (int set, int tag, char *cmd)
 }
 
 
+void show_dump() {
+}
 
 
-
-void show_stats()
-{
+void show_stats() {
 	printf("\n\n\t\t=========================================\n");
 	printf("\t\t|     Final Simulation Statistics       |\n");
 	printf("\t\t=========================================\n");
@@ -328,4 +334,21 @@ void show_stats()
 	printf("\t\t|  Total Cycles with  Cache:\t%d\t|\n", cycles);
 	printf("\t\t|  Total Cycles if no Cache:\t%d\t|\n", (reads+writes)*50);
 	printf("\t\t=========================================\n\n");
+}
+
+void add_history_node (cache_line *c_line, char cmd) {
+	hist_node *node;
+	
+	// create a new hist node and populate  with current data
+	node			= (hist_node *)malloc(sizeof(hist_node));
+	node->valid_bit = c_line->valid_bit;
+	node->dirty_bit	= c_line->dirty_bit;
+	node->LRU_bits  = c_line->LRU_bits;
+	node->tag       = c_line->tag;
+	node->cmd		= cmd;
+	node->next		= NULL;
+	
+	// update head to point to this node
+	c_line->head	= node;
+	
 }

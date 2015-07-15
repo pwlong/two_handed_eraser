@@ -20,26 +20,34 @@ typedef unsigned long long 	u64;
 #endif
 
 
-// this is a cache line. It includes a pointer to the history of that line
-typedef struct {
+
+typedef struct cache_line cache_line;
+typedef struct hist_node hist_node;
+
+struct hist_node{
+	int 		valid_bit;
+	int 		dirty_bit;
+	int 		LRU_bits;
+	int			tag;
+	char		cmd;
+	hist_node	*next;
+};
+
+struct cache_line{
 	int 		valid_bit;
 	int 		dirty_bit;
 	int 		LRU_bits;
 	int			tag;	
-	struct hist_node	*head;
-} cache_line;
+	hist_node	*head;
+};
 
-typedef struct {
-	cache_line	c_line;
-	int			set;
-	int			line;
-	struct hist_node	*next;
-} hist_node;
 
+/*
 typedef struct {
 	char command;
 	u32	 address;
 } mem_access;
+*/
 
 //function prototype
 void init_cache();
@@ -47,6 +55,8 @@ void cache_search(int, char*);
 void add_cache_line(int, int, int, char*);
 void replace_cache_line(int, int, char*);
 void show_stats();
+void show_dump();
+void add_history_node(cache_line*, char cmd);
 
 
 #endif
