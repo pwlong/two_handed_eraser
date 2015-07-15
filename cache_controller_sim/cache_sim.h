@@ -42,12 +42,14 @@ struct cache_line{
 };
 
 
-/*
 typedef struct {
 	char command;
 	u32	 address;
-} mem_access;
-*/
+	u32  tag;
+	u16  set;
+	u8   offset;
+} command;
+
 
 //function prototype
 void init_cache();
@@ -58,6 +60,7 @@ void show_stats();
 void show_dump();
 void add_history_node(cache_line*, char cmd);
 void show_hist(int, int);
-
+void free_mem();
+int  get_command();
 
 #endif

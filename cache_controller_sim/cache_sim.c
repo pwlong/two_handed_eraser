@@ -12,6 +12,7 @@ char *cmd;
 int  addr;
 int  addr_need;                 //toggle variable between r/w and addr
 
+
 // some flags that might get set in response to debug instructions in the input stream
 u8	d_flag = 0;
 u8  t_flag = 0;
@@ -28,12 +29,8 @@ void main(int argc, char *argv[])
     
     cache_line *ptr;
 	
-	char inst[15];				//string read from command file
-	char filename[100];			//command file's filename
-	
-	
-	
-	
+	char inst[15];				// string read from command file
+	char filename[100];			// command file's filename
 	
     init_cache();
 	
@@ -46,7 +43,7 @@ void main(int argc, char *argv[])
 	fp = fopen (filename,"r");
 	if (NULL == fp){
 		fprintf (stderr, "Failed to open input file. This is fatal!\n");
-		exit(-1);
+		exit;
 	}
 	
 
@@ -116,7 +113,8 @@ void main(int argc, char *argv[])
 				fprintf(stderr, "expected address, got %s\n", inst);
 				exit(-1);
 			}
-			//printf("Detect debug command D - define the function later\n"); 
+			// conditional check not really needed, we could just set it
+			// but spec said "ignore if already set" so putting this in
 			if (!d_flag) {d_flag = 1;}
 			
 		}
@@ -147,10 +145,11 @@ void main(int argc, char *argv[])
 	//int h = (int) strtol(str2,NULL,16);
 	
 	show_stats();
-	if (d_flag){show_dump();};
+	if (d_flag){show_dump();}
+	free_mem();
+	fclose(fp);
 	
-	// TODO: Close the files we opened
-	// TODO: free malloc'd memory
+	// TODO: input file parsing is slightly broken: it allows extra characters
 }
 
 //the function is to initial cache to NULL
@@ -317,6 +316,32 @@ void replace_cache_line (int set, int tag, char *cmd)
 		{
 		    tmp->LRU_bits++;
 		}	
+	}
+}
+
+int get_command() {
+/*	char inst[15];
+	
+	fscanf(fp,"%s", inst) != EOF
+*/
+}
+void free_mem(){
+	int i,j;
+	hist_node *current, *head;
+	
+	for (i=0; i<SETS; i++){
+		for (j=0; j<LINES; j++){
+			if (NULL == cache[i][j]){
+				free(cache[i][j]);
+			}else{
+				head = cache[i][j]->head;			// http://stackoverflow.com/questions/7025328
+				while ((current = head) != NULL) {	// set curr to head, stop if list empty.
+					head = head->next;				// advance head to next element.
+					free (current);					// delete saved pointer.
+				}
+			free(cache[i][j]);
+			}
+		}
 	}
 }
 
