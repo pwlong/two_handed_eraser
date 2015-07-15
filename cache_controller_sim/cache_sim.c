@@ -246,12 +246,14 @@ void add_cache_line(int line, int set, int tag, char * cmd)
 	if (strcmp(cmd,"w") == MATCH)	{ptr->dirty_bit = 1;}
 	else							{ptr->dirty_bit = 0;}
 	
+	// add history information
 	add_history_node(ptr, *cmd);
 	
-	
+	// save new line to  cache
 	cache[set][line]= ptr;
 	
 	//inc other lines LRU
+	// JEFFFFFFFF DO WE STILL NEED THIS HERE????????????????????????????
 	for ( i= 0; i < line; i++)
 	{
 		ptr =  cache[set][i];
@@ -315,6 +317,24 @@ void replace_cache_line (int set, int tag, char *cmd)
 
 
 void show_dump() {
+	int i, j;
+	
+	for (i=0; i<SETS; i++) {
+		if (NULL == cache[i][0]) {
+			printf("Set %d is untouched\n", i);
+		} else {
+			printf("Set %d has the following history\n", i);
+		}
+		for (j=0; j<LINES; j++) {
+			if (NULL != cache[i][j]){
+				printf("\tV: %d D: %d L: %d T: %d\n",\
+						cache[i][j]->valid_bit,\
+						cache[i][j]->dirty_bit,\
+						cache[i][j]->LRU_bits,\
+						cache[i][j]->tag);
+			}
+		}
+	}
 }
 
 
@@ -339,16 +359,21 @@ void show_stats() {
 void add_history_node (cache_line *c_line, char cmd) {
 	hist_node *node;
 	
-	// create a new hist node and populate  with current data
+	// create a new hist node and populate with current data
 	node			= (hist_node *)malloc(sizeof(hist_node));
 	node->valid_bit = c_line->valid_bit;
 	node->dirty_bit	= c_line->dirty_bit;
 	node->LRU_bits  = c_line->LRU_bits;
 	node->tag       = c_line->tag;
 	node->cmd		= cmd;
-	node->next		= NULL;
 	
-	// update head to point to this node
-	c_line->head	= node;
-	
+	// update head/next pointers to put this node at beginning of list
+	// i.e. LIFO order for history linked list
+	if (NULL == c_line->head) {
+		c_line->head	= node;
+		node->next		= NULL;
+	} else {
+		node->next		= c_line->head;
+		c_line->head	= node;
+	}		
 }
