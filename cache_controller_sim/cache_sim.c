@@ -47,11 +47,10 @@ void main(int argc, char *argv[])
 	}
 	
 
-	
 	//read instruction 
 	while (fscanf(fp,"%s", inst) != EOF)
 	{
-
+		//printf("in while loop\n");
         // the following codes is to parse the command file
     	if ((strcmp(inst, "w") == MATCH) ||      //detect w instruction
 		    (strcmp(inst, "W") == MATCH) )
@@ -190,19 +189,20 @@ void cache_search( int address, char *cmd)
 					
 					//update LRU
 					for (j = 0; j < LINES; j++) {
-					    if (i != j){                                //avoid the hit line in set
+						if (i != j){                                //avoid the hit line in set
 							tmp_LRU = cache[set][j];
-							if (tmp_LRU->LRU_bits < tmp->LRU_bits)    //incr only LRUbits of the lines that
+							
+						if ((tmp_LRU != NULL) &&
+							(tmp_LRU->LRU_bits < tmp->LRU_bits) )   //incr only LRUbits of the lines that
 							{                                          //is smaller then hit line LRU.
-							    tmp_LRU->LRU_bits++; 
+								tmp_LRU->LRU_bits++; 
 								add_history_node(tmp_LRU, *cmd);
-							}			
+							}
 						}
-					}	
+					}
 					tmp->LRU_bits = 0;  //change LRU in hit line to zero
+					if (cmd = "w") tmp->dirty_bit = 1;
 					add_history_node(tmp, *cmd);
-					
-					// update stats
 					break;
 				}	
 			}	
@@ -318,13 +318,15 @@ void replace_cache_line (int set, int tag, char *cmd)
 		}	
 	}
 }
-
+/*
 int get_command() {
-/*	char inst[15];
+	char inst[15];
 	
-	fscanf(fp,"%s", inst) != EOF
-*/
+	if (fscanf(fp,"%s", inst) == EOF) (
+		
+
 }
+*/
 void free_mem(){
 	int i,j;
 	hist_node *current, *head;
