@@ -405,8 +405,8 @@ void show_hist(int set, int line) {
 	
 void show_stats(char *filename) {
 	printf("\n\n\t\t=================================================\n");
-	printf("\t\t|         Final Simulation Statistics       \t|\n");
-	printf("\t\t|         Input File: %15s       \t|\n", filename);
+	printf("\t\t| Final Simulation Statistics       \t\t|\n");
+	printf("\t\t| Input File: %22s\t|\n", filename);
 	printf("\t\t=================================================\n");
 	printf("\t\t|    Total Mem Accesses:\t%10d\t|\n", reads + writes);
 	printf("\t\t|    Reads:\t\t\t%10d\t|\n", reads);
