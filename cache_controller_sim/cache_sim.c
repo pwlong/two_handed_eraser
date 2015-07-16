@@ -207,8 +207,8 @@ void cache_search( int address, char *cmd)
 		{
 		    
 		    if (tmp->valid_bit == TRUE)  
-			{
-				if (tmp->tag   == tag)		//got hit
+			{   //hit cases
+				if (tmp->tag   == tag)		
 				{
 					cycles++;
 					hits++;
@@ -246,9 +246,7 @@ void cache_search( int address, char *cmd)
 	
 	if (hit == FALSE){						// miss and all lines are occupied
 		misses++;
-		//if ('w' == cmd) {write_misses++;}
-		//else			{read_misses++;}
-	    replace_cache_line(set,tag,cmd);	// call line eviction
+		replace_cache_line(set,tag,cmd);	// call line eviction
 	}
 }
 
@@ -283,6 +281,7 @@ void add_cache_line(int line, int set, int tag, char * cmd)
 	{
 		ptr =  cache[set][i];
 		ptr->LRU_bits++;
+		add_history_node(ptr, *cmd);
 	}
 }
 
@@ -308,7 +307,6 @@ void replace_cache_line (int set, int tag, char *cmd)
 	//only for timing
 	if (tmp->dirty_bit == 1){
 		// must do a stream-out operation, update stats
-		// printf("write back occurs\n");
 		cycles += MEM_ACC_CYCLE;
 		stream_outs ++;
 	}
@@ -338,6 +336,7 @@ void replace_cache_line (int set, int tag, char *cmd)
 		if (i != line_evict)
 		{
 		    tmp->LRU_bits++;
+			add_history_node(tmp, *cmd);
 		}	
 	}
 }
@@ -385,10 +384,13 @@ void show_dump() {
 
 void show_hist(int set, int line) {
 	hist_node *head;
+	cache_line* current_line;
 	head = cache[set][line]->head;
+	current_line = cache[set][line];
+	//to print out the current states of the cache line and its history
 	
 	while (NULL != head) {
-		printf("\tV: %d\tD: %d\tL: %d\tT: %d\tCMD: %c\n",\
+		printf("History State: \tV: %d\tD: %d\tLRU : %d\tT: %d\tCMD: %c\n",\
 				head->valid_bit,\
 				head->dirty_bit,\
 				head->LRU_bits,\
