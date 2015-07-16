@@ -390,7 +390,7 @@ void show_hist(int set, int line) {
 	//to print out the current states of the cache line and its history
 	
 	while (NULL != head) {
-		printf("History State: \tV: %d\tD: %d\tLRU : %d\tT: %d\tCMD: %c\n",\
+		printf("History State: \tV: %d\tD: %d\tLRU: %d\tTag: %d\tCMD: %c\n",\
 				head->valid_bit,\
 				head->dirty_bit,\
 				head->LRU_bits,\
