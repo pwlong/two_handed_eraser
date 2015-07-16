@@ -10,4 +10,7 @@ run: all
 	./sim stimulus/HM3.test > logs/HM3.log
 
 clean:
-	rm -f a.out sim *.log out logs/*.log
+	rm -f a.out sim *.log out logs/*.log *.zip
+
+package: clean
+	zip ece587_project1_nguyen_long.zip *.c *.h makefile logs/* stimulus/*
