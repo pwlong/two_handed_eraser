@@ -2,3 +2,4 @@ a.out
 pwl
 sim
 logs/*.log
+stimulus/trace
