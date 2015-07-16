@@ -13,12 +13,13 @@
 #ifndef MAIN_HEADER
 #define MAIN_HEADER
 
-#define SETS  1024
-#define LINES 4
-#define SET_MASK  0x00007FE0
-#define SET_SHIFT 5
-#define TAG_MASK  0xFFFF8000
-#define TAG_SHIFT 15
+#define SETS  			1024
+#define LINES 			4
+#define MEM_ACC_CYCLE	50
+#define SET_MASK  		0x00007FE0
+#define SET_SHIFT 		5
+#define TAG_MASK  		0xFFFF8000
+#define TAG_SHIFT 		15
 
 #define MATCH 0
 #define TRUE  1
@@ -68,7 +69,7 @@ void init_cache();
 void cache_search(int, char*);
 void add_cache_line(int, int, int, char*);
 void replace_cache_line(int, int, char*);
-void show_stats();
+void show_stats(char*);
 void show_dump();
 void add_history_node(cache_line*, char cmd);
 void show_hist(int, int);

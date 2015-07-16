@@ -172,7 +172,7 @@ void main(int argc, char *argv[])
 	
 	//int h = (int) strtol(str2,NULL,16);
 	
-	show_stats();
+	show_stats(filename);
 	if (d_flag){show_dump();}
 	free_mem();
 	fclose(fp);
@@ -218,37 +218,37 @@ void cache_search( int address, char *cmd)
 					
 					//update LRU
 					for (j = 0; j < LINES; j++) {
-						if (i != j){                                //avoid the hit line in set
+						if (i != j){                                // avoid the hit line in set
 							tmp_LRU = cache[set][j];
 							
 						if ((tmp_LRU != NULL) &&
-							(tmp_LRU->LRU_bits < tmp->LRU_bits) )   //incr only LRUbits of the lines that
-							{                                          //is smaller then hit line LRU.
+							(tmp_LRU->LRU_bits < tmp->LRU_bits) )   // incr only LRUbits of the lines that
+							{                                       // is smaller then hit line LRU.
 								tmp_LRU->LRU_bits++; 
 								add_history_node(tmp_LRU, *cmd);
 							}
 						}
 					}
-					tmp->LRU_bits = 0;  //change LRU in hit line to zero
-					if (cmd = "w") tmp->dirty_bit = 1;
+					tmp->LRU_bits = 0;  // change LRU in hit line to zero
+					if (cmd == "w") tmp->dirty_bit = 1;
 					add_history_node(tmp, *cmd);
 					break;
 				}	
 			}	
 		}
-		else								//when this statment executed then
-		{									//the miss occurs, fill the line of set              
-			add_cache_line(i,set,tag,cmd);	//with new address.
+		else								// when this statment executed then
+		{									// the miss occurs, fill the line of set              
+			add_cache_line(i,set,tag,cmd);	// with new address.
 			hit  = TRUE;
 			break;
 		}	
     }
 	
-	if (hit == FALSE){						//miss and all lines are occupied
+	if (hit == FALSE){						// miss and all lines are occupied
 		misses++;
 		//if ('w' == cmd) {write_misses++;}
 		//else			{read_misses++;}
-	    replace_cache_line(set,tag,cmd);	//call line eviction
+	    replace_cache_line(set,tag,cmd);	// call line eviction
 	}
 }
 
@@ -260,7 +260,7 @@ void add_cache_line(int line, int set, int tag, char * cmd)
 	
 	// adding a cache line so we must do a stream-in operation
 	// update statistics
-	cycles =+ 51;
+	cycles += MEM_ACC_CYCLE+1;
 	stream_ins ++;
 	misses ++;
 	
@@ -309,7 +309,7 @@ void replace_cache_line (int set, int tag, char *cmd)
 	if (tmp->dirty_bit == 1){
 		// must do a stream-out operation, update stats
 		// printf("write back occurs\n");
-		cycles += 50;
+		cycles += MEM_ACC_CYCLE;
 		stream_outs ++;
 	}
 	
@@ -318,7 +318,7 @@ void replace_cache_line (int set, int tag, char *cmd)
 	tmp->LRU_bits = 0; 
 	
 	// must do a stream-in operation, update stats
-	cycles += 50;
+	cycles += MEM_ACC_CYCLE;
 	stream_ins ++;
 	
 	//set dirty bit in case of 'w'
@@ -367,15 +367,18 @@ void show_dump() {
 	
 	for (i=0; i<SETS; i++) {
 		if (NULL == cache[i][0]) {
-			printf("Set %d is untouched\n", i);
+			printf("Set %4d is untouched\n", i);
 		} else {
-			printf("Set %d has the following history:\n", i);
+			printf("\nSet %4d has the following history:\n", i);
 			for (j=0; j<LINES; j++) {
 				if (NULL != cache[i][j]){
 					printf("  LINE #%2d:\n", j);
 					show_hist(i,j);
+				}else{
+					printf("  LINE #%2d is untouched\n",j);
 				}
 			}
+			printf("\n");
 		}
 	}
 }
@@ -398,22 +401,23 @@ void show_hist(int set, int line) {
 	printf("\n");
 }
 	
-void show_stats() {
-	printf("\n\n\t\t=========================================\n");
-	printf("\t\t|     Final Simulation Statistics       |\n");
-	printf("\t\t=========================================\n");
-	printf("\t\t|  Total Mem Accesses:\t\t%d\t|\n", reads + writes);
-	printf("\t\t|  Reads:\t\t\t%d\t|\n", reads);
-	printf("\t\t|  Writes:\t\t\t%d\t|\n", writes);
-	printf("\t\t|  Stream-In Operations:\t%d\t|\n", stream_ins);
-	printf("\t\t|  Stream-Out Operations:\t%d\t|\n", stream_outs);
-	printf("\t\t|  Cache Hits:\t\t\t%d\t|\n", hits);
-	printf("\t\t|  Cache Misses:\t\t%d\t|\n", misses);
-	printf("\t\t|  Read Hits:\t\t\t%d\t|\n", read_hits);
-	printf("\t\t|  Write Hits:\t\t\t%d\t|\n", write_hits);
-	printf("\t\t|  Total Cycles with  Cache:\t%d\t|\n", cycles);
-	printf("\t\t|  Total Cycles if no Cache:\t%d\t|\n", (reads+writes)*50);
-	printf("\t\t=========================================\n\n");
+void show_stats(char *filename) {
+	printf("\n\n\t\t=================================================\n");
+	printf("\t\t|         Final Simulation Statistics       \t|\n");
+	printf("\t\t|         Input File: %15s       \t|\n", filename);
+	printf("\t\t=================================================\n");
+	printf("\t\t|    Total Mem Accesses:\t%10d\t|\n", reads + writes);
+	printf("\t\t|    Reads:\t\t\t%10d\t|\n", reads);
+	printf("\t\t|    Writes:\t\t\t%10d\t|\n", writes);
+	printf("\t\t|    Stream-In Operations:\t%10d\t|\n", stream_ins);
+	printf("\t\t|    Stream-Out Operations:\t%10d\t|\n", stream_outs);
+	printf("\t\t|    Cache Hits:\t\t%10d\t|\n", hits);
+	printf("\t\t|    Cache Misses:\t\t%10d\t|\n", misses);
+	printf("\t\t|    Read Hits:\t\t\t%10d\t|\n", read_hits);
+	printf("\t\t|    Write Hits:\t\t%10d\t|\n", write_hits);
+	printf("\t\t|    Total Cycles with  Cache:\t%10d\t|\n", cycles);
+	printf("\t\t|    Total Cycles if no Cache:\t%10d\t|\n", (reads+writes)*50);
+	printf("\t\t=================================================\n\n");
 }
 
 void add_history_node (cache_line *c_line, char cmd) {
