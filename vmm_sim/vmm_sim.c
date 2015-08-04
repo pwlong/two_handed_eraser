@@ -23,6 +23,7 @@
 
 
 /*		Constants							*/
+#define PF_SIZE 1024						// 1k pageframes
 
 /*		Some convenient types				*/
 
@@ -33,7 +34,6 @@ typedef unsigned int		u32;
 typedef unsigned long long 	u64;
 #endif
 
-/*		Function forward definitions		*/
 
 
 /*		Global Data Structures				*/
@@ -44,19 +44,31 @@ typedef struct {
 	u8  present;
 } PF_t;
 
+
+/*		Global variables					*/
+char *cmd;									// command being simulated
+PF_t PD[PF_SIZE];							// static Page directory
+
+
+
+/*		Function forward definitions		*/
+void init_pf (PF_t *);
+void print_pf(PF_t *);
+
+
+
 int main(int argc, char *argv[]){
 	
 	FILE *fp;								// stimulus file handle
-	char filename[100] = "stim.txt";		// stimulus file name
+	char filename[50] = "stim.txt";			// stimulus file name, can be overwritten on cmdline
 	
 	int opt = 0;
-	char *in_fname = NULL;
-	char *out_fname = NULL;
 	
+	// parse the cmdline
 	while ((opt = getopt(argc, argv, "i:p:")) != -1) {
 		switch(opt) {
 			case 'i':	strcpy(filename, optarg); break;
-			case 'p':	break;
+			case 'p':	break;// PWL THIS DOESNT DO ANYTHING YET!!!!!!!!!!!!!!!!!!!!!!!!
 			case '?': 
 						if (optopt == 'i'){
 							printf("USAGE: -i <filename>\n\n");
@@ -80,7 +92,8 @@ int main(int argc, char *argv[]){
 		exit;
 	}
 	
-	
+	init_pf(PD);
+	print_pf(PD);
 	
 	
 	
@@ -89,5 +102,26 @@ int main(int argc, char *argv[]){
 
 
 
+void init_pf(PF_t *pf){
+	int i;				//loop counter
 
+	for (i=0; i<PF_SIZE; i++) {
+			pf[i].address	= 0;
+			pf[i].reserved	= 0;
+			pf[i].dirty 	= 0;
+			pf[i].present	= 0;
+	}
+}
+
+void print_pf(PF_t *pf){
+	int i;
+	printf("=========================================\n");
+	printf("      current page frame contents\n");
+	printf("=========================================\n");
+	
+	for (i=0; i<PF_SIZE; i++) {
+		printf("%4d\taddress = %08X d = %d p = %d\n", i, pf[i].address, pf[i].dirty, pf[i].present);
+	}
+	printf("\n\n");
+}
 
