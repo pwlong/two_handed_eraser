@@ -21,7 +21,8 @@
 /*		Constants							*/
 #define PF_SIZE			1024				// 1k pageframes
 #define ADDR_SIZE_BITS	32
-#define ADDR_STRING_LEN	((ADDR_SIZE_BITS >> 3) + 2)
+//#define ADDR_STRING_LEN	((ADDR_SIZE_BITS >> 3) + 2)
+#define ADDR_STRING_LEN 10
 //#define MAX_PF			((1<<ADDR_SIZE_BITS)/PF_SIZE)
 #define MAX_PF			4194304
 #define MIN_PF			3
@@ -51,6 +52,9 @@ char *cmd ;									// command being simulated
 u32  addr;									// address being simulated
 u32	 available_pf = 10;						// user specified number of pageframes (default = 10)
 PF_t PD[PF_SIZE];							// Page Directory
+u8	 t_flag;
+u8	 d_flag;
+u8	 v_flag;
 
 
 
@@ -104,8 +108,8 @@ int main(int argc, char *argv[]){
 	init_pf(PD);
 	
 	// loop through input file an feed commands to sim
+	int count=1;
 	do {
-		int count=1;
 		printf("getting command #%d \n",count++);
 		get_command(fp);
 	} while (strcmp (cmd, "EOF"));
@@ -159,12 +163,17 @@ void get_command(FILE *fp){
 	static int need_addr = 0;
 	static char token[11];
 
-	int rc;
+	static int rc;
 	
 	rc = fscanf(fp, "%s", token);
+	printf("just after fscanf, token = %8s \teof_valid = %d\n", token, eof_valid);
 	if (rc == EOF && !eof_valid) {
 		fprintf(stderr, "invalid EOF in input file; this is fatal\n");
 		exit (-1);	//PWL SHOULD DO CLEANUP BEFORE EXIT!!!!!!!!!!!!!!!!
+	}
+	else if (rc == EOF ) {
+		printf("rc = EOF\n");
+		cmd = "EOF";
 	}
 	else if (first_time && strcmp(token, "-p")== MATCH) {  			//strcmp returns 0 if match
 		//printf("first_time = %d token = %s\n", first_time, token);
@@ -180,7 +189,6 @@ void get_command(FILE *fp){
 		need_num_pages = 0;
 	}
 	else if (need_addr) {
-		get_command(fp);
 		validate_addr(token);
 		need_addr = 0;
 		eof_valid = 1;
@@ -198,21 +206,22 @@ void get_command(FILE *fp){
 		need_addr= 1;
 		get_command(fp);
 	}
-	else if (rc == EOF) {
-		cmd = "EOF";
-	}
+	else if (strcmp(token, "-v") == MATCH) {v_flag = 1;}
+	else if (strcmp(token, "-t") == MATCH) {t_flag = 1;}
+	else if (strcmp(token, "-d") == MATCH) {d_flag = 1;}
 	else {
 		fprintf(stderr, "Invalid instruction sequence: got %s\n", token);
 		exit(-1);
 	}
 			
-	printf ("\n\n\n\tcmd = %s  #PFs = %d address = 0x%08X\n\n\n\n", cmd, available_pf, addr);	
+		
 	first_time = 0;
 }
 
 void validate_pf_number(u32 num_pf){
 	if (num_pf < MIN_PF || num_pf > MAX_PF) {
-		fprintf(stderr, "Invalid number of PF specified.\nMust be between %u and %u ", MIN_PF, MAX_PF);
+		fprintf(stderr, "Invalid number of PF specified\n");
+		fprintf(stderr, "Must be between %u and %u ", MIN_PF, MAX_PF);
 		fprintf(stderr, "but %u was specified\n", num_pf);
 		fprintf(stderr, "this is fatal: quitting\n");
 		exit(-1);//PWL SHOULD DO CLEANUP BEFORE EXIT!!!!!!!!!!!!!!!!
@@ -220,6 +229,7 @@ void validate_pf_number(u32 num_pf){
 }
 
 void validate_addr(char * token) {
+	printf("validating address\n");
 	if ( (strncmp(token, "0x", 2) == MATCH) &&
 		 (strlen(token) <= ADDR_STRING_LEN) ) {
 			 
