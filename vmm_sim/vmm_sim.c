@@ -27,6 +27,13 @@
 #define MAX_PF			4194304
 #define MIN_PF			3
 #define MATCH			0
+#define PD_MASK			0xFFC00000
+#define PT_MASK			0x3FF000
+#define OS_MASK			0xFFF
+#define	PD_BITS			10
+#define	PT_BITS			10
+#define	OS_BITS			12
+
 
 
 /*		Some convenient types				*/
@@ -46,13 +53,20 @@ typedef struct {
 	u8  present;
 } PF_t;
 
+typedef struct {
+	u16	PD_index;
+	u16	PT_index;
+	u16 UP_offset;
+} VA_t;
+
 
 /*		Global variables					*/
 char *cmd ;									// command being simulated
 u32  addr;									// address being simulated
 u32	 available_pf = 10;						// user specified number of pageframes (default = 10)
 PF_t PD[PF_SIZE];							// Page Directory
-u8	 t_flag;
+VA_t working_addr;							// virtual address that is currently getting manipulated
+u8	 t_flag;								// various debug flags
 u8	 d_flag;
 u8	 v_flag;
 
@@ -64,9 +78,8 @@ void print_pf(PF_t *);
 void get_command(FILE *);
 void validate_pf_number(u32);
 void validate_addr(char *);
-
-
-
+void parse_addr(u32);
+int is_present(u16, const char *);
 
 
 
@@ -74,6 +87,7 @@ int main(int argc, char *argv[]){
 	
 	FILE *fp;								// stimulus file handle
 	char filename[50] = "stim.txt";			// stimulus file name, can be overwritten on cmdline
+	
 	
 	int opt = 0;
 	
@@ -108,12 +122,31 @@ int main(int argc, char *argv[]){
 	init_pf(PD);
 	
 	// loop through input file an feed commands to sim
-	int count=1;
+	//int count=1;
 	do {
-		printf("getting command #%d \n",count++);
+		//printf("getting command #%d \n",count++);
 		get_command(fp);
+		if (strcmp(cmd, "-v") == MATCH) {
+			printf("VMM Simulator Ver 0.1\n"); 
+			exit(-1);
+		}
+		else if (strcmp(cmd, "w") == MATCH || strcmp(cmd, "r") == MATCH ) {
+			parse_addr(addr);
+			//printf("working address\n");
+			//printf("\tPD %d\n", working_addr.PD_index );
+			//printf("\tPT %d\n", working_addr.PT_index );
+			//printf("\tOS %d\n", working_addr.UP_offset);
+			if (is_present(working_addr.PD_index, "PD") == 1) {
+				if (is_present(working_addr.PT_index, "PT") == 1) {
+					//This is a hit
+					//update r/w counters
+				}
+			}
+		}
+			
+		
 	} while (strcmp (cmd, "EOF"));
-	printf("Caught EOF, we are done here. G'night\n");
+	//printf("Caught EOF, we are done here. G'night\n");
 		
 	
 }
@@ -166,7 +199,7 @@ void get_command(FILE *fp){
 	static int rc;
 	
 	rc = fscanf(fp, "%s", token);
-	printf("just after fscanf, token = %8s \teof_valid = %d\n", token, eof_valid);
+	//printf("just after fscanf, token = %8s \teof_valid = %d\n", token, eof_valid);
 	if (rc == EOF && !eof_valid) {
 		fprintf(stderr, "invalid EOF in input file; this is fatal\n");
 		exit (-1);	//PWL SHOULD DO CLEANUP BEFORE EXIT!!!!!!!!!!!!!!!!
@@ -224,7 +257,7 @@ void validate_pf_number(u32 num_pf){
 		fprintf(stderr, "Must be between %u and %u ", MIN_PF, MAX_PF);
 		fprintf(stderr, "but %u was specified\n", num_pf);
 		fprintf(stderr, "this is fatal: quitting\n");
-		exit(-1);//PWL SHOULD DO CLEANUP BEFORE EXIT!!!!!!!!!!!!!!!!
+		exit(-1);//PWL DO CLEANUP BEFORE EXIT!!!!!!!!!!!!!!!!
 	}
 }
 
@@ -238,6 +271,29 @@ void validate_addr(char * token) {
 		fprintf(stderr, "illegal address specified\n");
 		fprintf(stderr, "valid address is of the form 0xffffffff\n");
 		fprintf(stderr, "%s was specified\n", token);
-		exit(-1);//PWL SHOULD DO CLEANUP BEFORE EXIT!!!!!!!!!!!!!!!!
+		exit(-1);//PWL DO CLEANUP BEFORE EXIT!!!!!!!!!!!!!!!!
+	}
+}
+
+/*	takes the supplied address for the inputfile
+	and parses it into the working_addr data
+	structure
+	*/
+	
+void parse_addr(u32 addr) {
+	working_addr.PD_index  = (addr & PD_MASK) >> (PT_BITS + OS_BITS);
+	working_addr.PT_index  = (addr & PT_MASK) >> OS_BITS;
+	working_addr.UP_offset = (addr & OS_MASK);
+}
+
+int is_resident(u16 index, const char* PF_type) {
+	// increment machine cycle counters here
+	if ( strcmp(PF_type, "PD") == MATCH ) {
+		return PD[index].present;
+	} else if (strcmp(PF_type, "PD") == MATCH){
+		return PT[index].present;
+	} else {
+		//error case
+		exit(-1);
 	}
 }
