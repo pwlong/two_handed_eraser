@@ -1,5 +1,5 @@
 /*
-	ECE 587
+ECE 587
 	Portland State University Summer 2015
 	Project 2: VMM simulator
 	
@@ -60,6 +60,7 @@ typedef struct {
 } VA_t;
 
 
+
 /*		Global variables					*/
 char *cmd ;									// command being simulated
 u32  addr;									// address being simulated
@@ -71,6 +72,8 @@ u8	 d_flag;
 u8	 v_flag;
 
 
+u32  used_pf   = 0;                         // tracking numbers of pf used
+
 
 /*		Function forward definitions		*/
 void init_pf (PF_t *);
@@ -79,7 +82,11 @@ void get_command(FILE *);
 void validate_pf_number(u32);
 void validate_addr(char *);
 void parse_addr(u32);
-int is_present(u16, const char *);
+int is_PT_present(u16);
+int is_UP_present(u16 pd_index, u16 pt_index);
+void create_page_table(u16 pd_index, const char* rw);
+void create_user_page(u16 pd_index, u16 pt_index,const char* rw);
+void evict_page();
 
 
 
@@ -132,16 +139,32 @@ int main(int argc, char *argv[]){
 		}
 		else if (strcmp(cmd, "w") == MATCH || strcmp(cmd, "r") == MATCH ) {
 			parse_addr(addr);
-			//printf("working address\n");
-			//printf("\tPD %d\n", working_addr.PD_index );
-			//printf("\tPT %d\n", working_addr.PT_index );
-			//printf("\tOS %d\n", working_addr.UP_offset);
-			if (is_present(working_addr.PD_index, "PD") == 1) {
-				if (is_present(working_addr.PT_index, "PT") == 1) {
-					//This is a hit
-					//update r/w counters
+			printf("working address\n");
+			printf("\tPD %d\n", working_addr.PD_index );
+			printf("\tPT %d\n", working_addr.PT_index );
+			printf("\tOS %d\n", working_addr.UP_offset);
+			
+			if (is_PT_present(working_addr.PD_index) == 1) {
+			    //check the user page present
+				if(is_UP_present(working_addr.PD_index, working_addr.PT_index) == 1)
+				{
+					//Add cycle count
+				}
+				else  //the PT exist but not the user page
+				{
+				   if (available_pf == used_pf)       // no pf avail then evict one page
+						evict_page();
+				   create_user_page(working_addr.PD_index, working_addr.PT_index,cmd);
 				}
 			}
+			else   // new PT and UP need to created
+			{	
+			    while (available_pf < (used_pf + 2))   // create 2 avail pf
+					evict_page();
+					
+			    create_page_table(working_addr.PD_index, cmd);
+			    create_user_page(working_addr.PD_index, working_addr.PT_index, cmd);
+			}   
 		}
 			
 		
@@ -286,14 +309,216 @@ void parse_addr(u32 addr) {
 	working_addr.UP_offset = (addr & OS_MASK);
 }
 
-int is_resident(u16 index, const char* PF_type) {
-	// increment machine cycle counters here
-	if ( strcmp(PF_type, "PD") == MATCH ) {
+/* 
+*   Function: is_PT_present
+*
+*	Description: This function is to check the Page Table(PT) exist
+*      by checking the present bit in PD entry
+*
+*	Inputs:      Index to PD, 
+*
+*   Outputs:     1 - Exist
+*                0 - None exist
+*
+*/
+
+int is_PT_present(u16 index) 
+{
 		return PD[index].present;
-	} else if (strcmp(PF_type, "PD") == MATCH){
-		return PT[index].present;
-	} else {
-		//error case
-		exit(-1);
+}
+
+/* 
+*   Function: is_UP_present
+*
+*	Description: This function is to check the User Page(UP) exist
+*      by checking the present bit in PT entry.
+*
+*	Inputs:      Index to PD, 
+*                Index to PT,
+*
+*   Outputs:     1 - Exist
+*                0 - None exist
+*
+*/
+
+int is_UP_present(u16 pd_index, u16 pt_index) 
+{
+	PF_t * page;
+	
+	//retrieve pointer to PT from PD entry
+	page = (PF_t *) PD[pd_index].address;
+	
+	//return present bit at PT entry
+	return ((page+pt_index)->present = 1);
+}
+
+
+/* 
+*   Function: create_page_table
+*
+*	Description: This function is to allocate memory for the new PT,
+*      the PT address are stored in associated entry in PD, as well as
+*      set up present and dirty bit. 
+*
+*	Inputs:      Index to PD, 
+*                Index to PT,
+*                RW cmd
+*
+*   Outputs:     None
+*
+*/
+
+void create_page_table(u16 pd_index, const char *rw)
+{
+ 	PF_t * page;
+    
+	page =  (void *) malloc(sizeof(PF_t)*1024);
+	
+	used_pf ++; //tracking number of pf created
+	
+    //set the PT addr to PD entry, present bit
+	PD[pd_index].address = (u32) page;
+	PD[pd_index].present = 1;
+	
+	if (strcmp (rw, "w")== MATCH)
+		PD[pd_index].dirty = 1;
+		
+    //CALL swapin;
+}
+
+/* 
+*   Function: create_user_page
+*
+*	Description: This function is to set present and dirty bit in 
+*      associated entry in PT for new user page. The user page address 
+*      does not need to store in the entry because we not use access to
+*      the UP.
+*
+*	Inputs:      Index to PD, 
+*                Index to PT
+*                RW cmd
+*
+*   Outputs:     None
+*
+*/
+
+void create_user_page(u16 pd_index, u16 pt_index, const char *rw)
+{
+    PF_t * page;
+	
+	page = (PF_t *) PD[pd_index].address;
+	(page+pt_index)->present =1 ;
+	if (strcmp (rw, "w")== MATCH){
+		(page+pt_index)->dirty =1 ;
+	}	
+    used_pf ++;     //tracking number of used pf
+	
+	//CALL swap in
+}
+
+/* 
+*   Function: evict_page
+*
+*	Description: This function is evicts a page. The evicted page is selected randomly
+*      with constraint of avoiding swap-out policy.
+*
+*	Inputs:      None
+*
+*   Outputs:     None
+*
+*/
+
+void evict_page()
+{
+    int evict_dirty_pages[PF_SIZE], evict_clean_pages[PF_SIZE];
+	int num_dirty_pages, num_clean_pages;
+	int evict_PD_entry;
+	int evict_PT_entry;
+	PF_t * page_addr;
+	
+	
+	int i,d_index, c_index;
+	num_dirty_pages = 0;
+	num_clean_pages = 0;
+	d_index = 0;
+	c_index = 0;
+	
+	
+	
+	
+	//search in PD for present PT, categoried into dirty and clean
+	for (i = 0; i < PF_SIZE; i++)
+	{
+	    if (PD[i].present == 1)
+		{
+			if (PD[i].dirty == 1)
+			{
+		        evict_dirty_pages[d_index] = i;
+				d_index ++;
+				num_dirty_pages ++;
+			}
+			else {
+			    evict_clean_pages[c_index] = i;
+				c_index ++;
+                num_clean_pages ++;
+            }				
+		}
+	}  //end PD for loop search
+	
+	//select the evict pages randomly with no write back priority
+	//evict number is an entry in PD
+	srand(1);
+	if (num_clean_pages > 0) 
+	{
+		evict_PD_entry = rand() % num_clean_pages;
 	}
+	else {
+		evict_PD_entry = rand() % num_dirty_pages;
+	}
+	
+    //retrieve pointer to PT
+	page_addr = (PF_t*) PD[evict_PD_entry].address;
+	d_index = 0;
+	c_index = 0;
+	num_clean_pages = 0;
+	num_dirty_pages = 0;
+	
+	//search for UP to evict
+	for (i = 0; i < PF_SIZE ; i++)
+	{
+	    if ( (page_addr+i)->present == 1)
+		{		
+		   evict_clean_pages[c_index] = i;
+		   c_index++;
+		   num_clean_pages++;
+		}
+		else 
+		{
+		    evict_clean_pages[c_index] = i;
+			c_index ++;
+            num_clean_pages ++;
+        }				
+	}  //end PT for loop search
+		   
+	if (num_clean_pages > 0)                         //evict clean page
+	{
+		evict_PT_entry = rand() % num_clean_pages;
+		(page_addr + evict_PT_entry)-> present = 0;    //clear the present bit
+		used_pf --;                                  //set number user PF
+	}
+	else if (num_dirty_pages >0)                     //Evict dirty page
+	{
+		evict_PT_entry = rand() % num_dirty_pages;
+		(page_addr + evict_PT_entry)-> present = 0;
+		(page_addr + evict_PT_entry)-> dirty   = 0;
+		used_pf --;
+		//CALL swap-out ; 
+	} 
+	else {  //evic the own pT	
+		//clear the entry in PD
+		PD[evict_PD_entry].present  = 0;
+		PD[evict_PD_entry].dirty    = 0;
+		used_pf --;
+	}
+	
 }
