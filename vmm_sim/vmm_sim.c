@@ -71,12 +71,12 @@ u8	 t_flag;								// various debug flags
 u8	 d_flag;
 u8	 v_flag;
 
-
+PF_t * PTBR;
 u32  used_pf   = 0;                         // tracking numbers of pf used
 
 
 /*		Function forward definitions		*/
-void init_pf (PF_t *);
+void init_PD ();
 void print_pf(PF_t *);
 void get_command(FILE *);
 void validate_pf_number(u32);
@@ -125,8 +125,8 @@ int main(int argc, char *argv[]){
 		fprintf (stderr, "Failed to open input file. This is fatal!\n");
 		exit(0);
 	}
-	// setup a PD
-	init_pf(PD);
+	//call function to allocate memory to PD
+	init_PD();
 	
 	// loop through input file an feed commands to sim
 	//int count=1;
@@ -175,20 +175,28 @@ int main(int argc, char *argv[]){
 }
 
 
-/*	Simple initialization of a page frame
-
-	Takes pointer to the PF
-	Iterates through every line of the PF
-	Sets all members in the struct = 0
+/*	
+*	Function: init_PD
+*	
+*	Description: The function is to allocate memory for PD,
+*       which is an array of 1024 items of PF struct.
+*		The PTBR is the pointer to the PD
+*	
+*	Inputs: None
+*
+*   Outputs: None
 */
-void init_pf(PF_t *pf){
+void init_PD(){
+	
 	int i;				//loop counter
+	PTBR = (PF_t*) malloc (sizeof (PF_t) *1024);
+	used_pf ++;
 
 	for (i=0; i<PF_SIZE; i++) {
-			pf[i].address	= 0;
-			pf[i].reserved	= 0;
-			pf[i].dirty 	= 0;
-			pf[i].present	= 0;
+	    (PTBR + i)->address  = 0;
+		(PTBR + i)->reserved = 0;
+		(PTBR + i)->dirty    = 0;
+		(PTBR + i)->present  = 0;
 	}
 }
 
@@ -324,7 +332,7 @@ void parse_addr(u32 addr) {
 
 int is_PT_present(u16 index) 
 {
-		return PD[index].present;
+	return ((PTBR + index)->present);
 }
 
 /* 
@@ -343,13 +351,15 @@ int is_PT_present(u16 index)
 
 int is_UP_present(u16 pd_index, u16 pt_index) 
 {
-	PF_t * page;
+	size_t page;
+	int    result;
 	
 	//retrieve pointer to PT from PD entry
-	page = (PF_t *) PD[pd_index].address;
+	page = (PTBR+pd_index)->address;
 	
 	//return present bit at PT entry
-	return ((page+pt_index)->present = 1);
+	result = ((PF_t*)((size_t)page + pt_index))->present; 
+	return result;
 }
 
 
@@ -370,19 +380,20 @@ int is_UP_present(u16 pd_index, u16 pt_index)
 
 void create_page_table(u16 pd_index, const char *rw)
 {
- 	PF_t * page;
-    
-	page =  (void *) malloc(sizeof(PF_t)*1024);
+ 	PF_t* page;
+    //allocate memory for new PT
+	page =  (PF_t*) malloc(sizeof(PF_t)*1024);
 	
 	used_pf ++; //tracking number of pf created
 	
     //set the PT addr to PD entry, present bit
-	PD[pd_index].address = (u32) page;
-	PD[pd_index].present = 1;
+	(PTBR + pd_index)->address = ((size_t)page);
+	(PTBR + pd_index)->present = 1;
 	
-	if (strcmp (rw, "w")== MATCH)
-		PD[pd_index].dirty = 1;
-		
+	if (strcmp (rw, "w") == MATCH)
+	   (PTBR + pd_index)->dirty = 1;
+   
+    printf ("New Page Table added to PD as entry %d\n", pd_index);   
     //CALL swapin;
 }
 
@@ -404,15 +415,18 @@ void create_page_table(u16 pd_index, const char *rw)
 
 void create_user_page(u16 pd_index, u16 pt_index, const char *rw)
 {
-    PF_t * page;
+    size_t page;
 	
-	page = (PF_t *) PD[pd_index].address;
-	(page+pt_index)->present =1 ;
+	page = (PTBR + pd_index)->address;  //retrieve the pointer to PT
+	
+	((PF_t*) (page + pt_index))->present = 1 ;
+	
 	if (strcmp (rw, "w")== MATCH){
-		(page+pt_index)->dirty =1 ;
+		((PF_t*) (page + pt_index))->dirty = 1;
 	}	
     used_pf ++;     //tracking number of used pf
 	
+	printf("Add user page at the entry %d of PT at %lx\n", pt_index, page);
 	//CALL swap in
 }
 
@@ -430,11 +444,12 @@ void create_user_page(u16 pd_index, u16 pt_index, const char *rw)
 
 void evict_page()
 {
-    int evict_dirty_pages[PF_SIZE], evict_clean_pages[PF_SIZE];
+   int evict_dirty_pages[PF_SIZE], evict_clean_pages[PF_SIZE];
 	int num_dirty_pages, num_clean_pages;
-	int evict_PD_entry;
-	int evict_PT_entry;
-	PF_t * page_addr;
+	int evict_PD_entry;    //indicate which entry in PD is evicted
+	int evict_PT_entry;    //indicate which entry in PT is evicted
+	size_t page_addr;
+	PF_t * tmp;
 	
 	
 	int i,d_index, c_index;
@@ -444,14 +459,16 @@ void evict_page()
 	c_index = 0;
 	
 	
+	printf ("evict page \n");
 	
 	
 	//search in PD for present PT, categoried into dirty and clean
 	for (i = 0; i < PF_SIZE; i++)
-	{
-	    if (PD[i].present == 1)
+	{   
+	    tmp = (PF_t *) (PTBR + i);
+	    if (tmp->present == 1)
 		{
-			if (PD[i].dirty == 1)
+			if (tmp->dirty == 1)
 			{
 		        evict_dirty_pages[d_index] = i;
 				d_index ++;
@@ -470,23 +487,29 @@ void evict_page()
 	srand(1);
 	if (num_clean_pages > 0) 
 	{
-		evict_PD_entry = rand() % num_clean_pages;
+		evict_PD_entry = evict_clean_pages[rand() % num_clean_pages];
 	}
 	else {
-		evict_PD_entry = rand() % num_dirty_pages;
+		evict_PD_entry = evict_dirty_pages[rand() % num_dirty_pages];
 	}
 	
+	printf("number of clean page %d\n", num_clean_pages);
+	printf("number of dirty page %d\n", num_dirty_pages);
+	printf("the PT entry to evict %d\n",evict_PD_entry);
+	printf("number of frame used before evict %d\n", used_pf);
+	
+	
     //retrieve pointer to PT
-	page_addr = (PF_t*) PD[evict_PD_entry].address;
+	page_addr =  ((PTBR+evict_PD_entry)->address);
 	d_index = 0;
 	c_index = 0;
 	num_clean_pages = 0;
 	num_dirty_pages = 0;
-	
-	//search for UP to evict
+	 
+	//loop thr PT to search for UP to evict
 	for (i = 0; i < PF_SIZE ; i++)
 	{
-	    if ( (page_addr+i)->present == 1)
+	    if ( ((PF_t*)(page_addr+i))->present == 1)
 		{		
 		   evict_clean_pages[c_index] = i;
 		   c_index++;
@@ -502,23 +525,23 @@ void evict_page()
 		   
 	if (num_clean_pages > 0)                         //evict clean page
 	{
-		evict_PT_entry = rand() % num_clean_pages;
-		(page_addr + evict_PT_entry)-> present = 0;    //clear the present bit
+		evict_PT_entry = evict_clean_pages[rand() % num_clean_pages];
+		((PF_t*)page_addr + evict_PT_entry)-> present = 0;    //clear the present bit
 		used_pf --;                                  //set number user PF
 	}
 	else if (num_dirty_pages >0)                     //Evict dirty page
 	{
-		evict_PT_entry = rand() % num_dirty_pages;
-		(page_addr + evict_PT_entry)-> present = 0;
-		(page_addr + evict_PT_entry)-> dirty   = 0;
+		evict_PT_entry = evict_dirty_pages[rand() % num_dirty_pages];
+		((PF_t*)page_addr + evict_PT_entry)-> present = 0;
+		((PF_t*)page_addr + evict_PT_entry)-> dirty   = 0;
 		used_pf --;
 		//CALL swap-out ; 
 	} 
-	else {  //evic the own pT	
+	else {  //evic its own PT	
 		//clear the entry in PD
-		PD[evict_PD_entry].present  = 0;
-		PD[evict_PD_entry].dirty    = 0;
+		((PF_t*) (PD + evict_PD_entry))->present  = 0;
+		((PF_t*) (PD + evict_PD_entry))->dirty    = 0;
 		used_pf --;
 	}
-	
+	printf("number of frame used before evict %d\n", used_pf);
 }
