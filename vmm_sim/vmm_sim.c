@@ -86,7 +86,7 @@ u32 num_PT_max;
 u32 num_UP_total;
 u32 num_UP_max;
 
-PF_t * PTBR;
+PF_t * PDBR;
 
 
 
@@ -201,7 +201,7 @@ int main(int argc, char *argv[]){
 *	
 *	Description: The function is to allocate memory for PD,
 *       which is an array of 1024 items of PF struct.
-*		The PTBR is the pointer to the PD
+*		The PDBR is the pointer to the PD
 *	
 *	Inputs: None
 *
@@ -210,36 +210,19 @@ int main(int argc, char *argv[]){
 void init_PD(){
 	
 	int i;				//loop counter
-	PTBR = (PF_t*) malloc (sizeof (PF_t) *1024);
+	PDBR = (PF_t*) malloc (sizeof (PF_t) *1024);
 	used_pf ++;
 
 	for (i=0; i<PF_SIZE; i++) {
-	    (PTBR + i)->address  = 0;
-		(PTBR + i)->reserved = 0;
-		(PTBR + i)->dirty    = 0;
-		(PTBR + i)->present  = 0;
+	    (PDBR + i)->address  = 0;
+		(PDBR + i)->reserved = 0;
+		(PDBR + i)->dirty    = 0;
+		(PDBR + i)->present  = 0;
 	}
 }
 
 
-/*	Simple print out of a page frame
 
-	Takes a pointer to the PF
-	Interates through each line of the PF
-	Prints out the all members of the struct 
-*/
-void print_pf(PF_t *pf){
-	int i;
-	printf("=========================================\n");
-	printf("      current page frame contents\n");
-	printf("=========================================\n");
-	
-	for (i=0; i<PF_SIZE; i++) {
-		printf("%4d\taddress = %08X d = %d p = %d\n",\
-			    i, pf[i].address, pf[i].dirty, pf[i].present);
-	}
-	printf("\n\n");
-}
 
 void get_command(FILE *fp){
 	static int first_time = 1;
@@ -366,7 +349,7 @@ void parse_addr(u32 addr) {
 
 int is_PT_present(u16 index) 
 {
-	return ((PTBR + index)->present);
+	return ((PDBR + index)->present);
 }
 
 /* 
@@ -389,7 +372,7 @@ int is_UP_present(u16 pd_index, u16 pt_index)
 	int    result;
 	
 	//retrieve pointer to PT from PD entry
-	page = (PTBR+pd_index)->address;
+	page = (PDBR+pd_index)->address;
 	
 	//return present bit at PT entry
 	result = ((PF_t*)((size_t)page + pt_index))->present; 
@@ -421,11 +404,11 @@ void create_page_table(u16 pd_index, const char *rw)
 	used_pf ++; //tracking number of pf created
 	
     //set the PT addr to PD entry, present bit
-	(PTBR + pd_index)->address = ((size_t)page);
-	(PTBR + pd_index)->present = 1;
+	(PDBR + pd_index)->address = ((size_t)page);
+	(PDBR + pd_index)->present = 1;
 	
 	if (strcmp (rw, "w") == MATCH)
-	   (PTBR + pd_index)->dirty = 1;
+	   (PDBR + pd_index)->dirty = 1;
    
     printf ("New Page Table added to PD as entry %d\n", pd_index);   
     //CALL swapin;
@@ -451,7 +434,7 @@ void create_user_page(u16 pd_index, u16 pt_index, const char *rw)
 {
     size_t page;
 	
-	page = (PTBR + pd_index)->address;  //retrieve the pointer to PT
+	page = (PDBR + pd_index)->address;  //retrieve the pointer to PT
 	
 	((PF_t*) (page + pt_index))->present = 1 ;
 	
@@ -499,7 +482,7 @@ void evict_page()
 	//search in PD for present PT, categoried into dirty and clean
 	for (i = 0; i < PF_SIZE; i++)
 	{   
-	    tmp = (PF_t *) (PTBR + i);
+	    tmp = (PF_t *) (PDBR + i);
 	    if (tmp->present == 1)
 		{
 			if (tmp->dirty == 1)
@@ -534,7 +517,7 @@ void evict_page()
 	
 	
     //retrieve pointer to PT
-	page_addr =  ((PTBR+evict_PD_entry)->address);
+	page_addr =  ((PDBR+evict_PD_entry)->address);
 	d_index = 0;
 	c_index = 0;
 	num_clean_pages = 0;
@@ -589,27 +572,46 @@ void dump_command(){
 
 void dump_vmm() {
 	int i,j;
-	int PT_base_addr;
+	PF_t * PT_base;
+	//int PT_base_addr;
 	
 	for (i=0; i < PF_SIZE; i++) {
-		if (PD[i].present != 0) {
-			PT_base_addr = PD[i].address;
-			printf("===============================================\n");
-			printf("PD index = %04d ", i);
-			printf("addr = 0x%08X ", PD[i].address);
-			printf("p = %d ",PD[i].present);
-			printf("d = %d\n",PD[i].dirty);
-			printf("================================================\n");
+		if ((PDBR + i)->present == 1) {
+			printf("=========================================\n");
+			printf("      Page Directory Line # %04d\n", i);
+			printf("=========================================\n");
+			//print_pf(PDBR + i);
+			//PT_base = (PF_t*)(PDBR + i)->address;
+			
+			
+			//printf("PD index = %04d ", i);
+			//printf("addr = 0x%08X ", (PDBR + i)->address);
+			//printf("p = %d ",(PDBR + i)->present);
+			//printf("d = %d\n",(PDBR + i)->dirty);
+			
 			for (j=0; j < PF_SIZE; j++) {
-				if ( (*(PF_t*)(PT_base_addr)).present != 0 ) {
-					printf("\t\tPT_index = %d ",j);
-					printf("addr = 0x%08X ", (*(PF_t*)(PT_base_addr)).address);
-					printf("p = %d ",        (*(PF_t*)(PT_base_addr)).present);
-					printf("d = %d\n",       (*(PF_t*)(PT_base_addr)).dirty);
+				if ( (PT_base + j)->present == 1 ) {
+					print_pf(PT_base + j);
 				}
-				PT_base_addr ++;
 			}
+			printf("\n\n");
 		}
 	}
 	printf("\n\n\n\n\n");
+}
+
+/*	Simple print out of a page frame
+
+	Takes a pointer to the PF
+	Interates through each line of the PF
+	Prints out the all members of the struct 
+*/
+void print_pf(PF_t *pf){
+	int i;
+	
+	//for (i=0; i<PF_SIZE; i++) {
+		printf("\tPT Line #%4d address = 0x%08X d = %d p = %d\n",\
+			    i, pf->address, pf->dirty, pf->present);
+	//}
+	//printf("\n\n");
 }
