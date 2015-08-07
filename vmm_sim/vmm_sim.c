@@ -67,9 +67,9 @@ u32  addr;									// address being simulated
 u32	 available_pf = 10;						// user specified number of pageframes (default = 10)
 PF_t PD[PF_SIZE];							// Page Directory
 VA_t working_addr;							// virtual address that is currently getting manipulated
-u8	 t_flag;								// various debug flags
-u8	 d_flag;
-u8	 v_flag;
+u8	 t_flag=0;								// various debug flags
+u8	 d_flag=0;
+u8	 v_flag=0;
 
 
 
@@ -125,6 +125,7 @@ void create_page_table(u16 pd_index, const char* rw);
 void create_user_page(u16 pd_index, u16 pt_index,const char* rw);
 void evict_page();
 void print_outputs();
+void dump_vmm();
 
 
 
@@ -169,9 +170,7 @@ int main(int argc, char *argv[]){
 	init_PD();
 	
 	// loop through input file an feed commands to sim
-	//int count=1;
 	do {
-		//printf("getting command #%d \n",count++);
 		get_command(fp);
 		if (strcmp(cmd, "-v") == MATCH) {
 			printf("VMM Simulator Ver 0.1\n"); 
@@ -179,17 +178,20 @@ int main(int argc, char *argv[]){
 		}
 		else if (strcmp(cmd, "w") == MATCH || strcmp(cmd, "r") == MATCH ) {
 			parse_addr(addr);
-			printf("working address\n");
-			printf("\tPD %d\n", working_addr.PD_index );
-			printf("\tPT %d\n", working_addr.PT_index );
-			printf("\tOS %d\n", working_addr.UP_offset);
+			if ( t_flag == 1 ){
+				printf(" %s 0x%08X\n", cmd, addr);
+			}
+			//printf("working address\n");
+			//printf("\tPD %d\n", working_addr.PD_index );
+			//printf("\tPT %d\n", working_addr.PT_index );
+			//printf("\tOS %d\n", working_addr.UP_offset);
 			
 			if (is_PT_present(working_addr.PD_index) == 1) {
 			    //check the user page present
 				if(is_UP_present(working_addr.PD_index, working_addr.PT_index) == 1)
 				{
 					total_cycles += 20;               //if the address exist, it considers memory access
-					printf("get here few time\n");
+					//printf("get here few time\n");
 				}
 				else  //the PT exists but not the user page
 				{
@@ -207,7 +209,7 @@ int main(int argc, char *argv[]){
 			    create_user_page(working_addr.PD_index, working_addr.PT_index, cmd);
 			}   
 		}
-			
+		if (d_flag == 1){dump_vmm();}	
 		
 	} while (strcmp (cmd, "EOF"));
 	
@@ -261,7 +263,7 @@ void get_command(FILE *fp){
 		exit (-1);	//PWL SHOULD DO CLEANUP BEFORE EXIT!!!!!!!!!!!!!!!!
 	}
 	else if (rc == EOF ) {
-		printf("rc = EOF\n");
+		//printf("rc = EOF\n");
 		cmd = "EOF";
 	}
 	else if (first_time && strcmp(token, "-p")== MATCH) {  			//strcmp returns 0 if match
@@ -295,9 +297,18 @@ void get_command(FILE *fp){
 		need_addr= 1;
 		get_command(fp);
 	}
-	else if (strcmp(token, "-v") == MATCH) {v_flag = 1;}
-	else if (strcmp(token, "-t") == MATCH) {t_flag = 1;}
-	else if (strcmp(token, "-d") == MATCH) {d_flag = 1;}
+	else if (strcmp(token, "-v") == MATCH) {
+		v_flag = 1;
+		cmd = "-v";
+	}
+	else if (strcmp(token, "-t") == MATCH) {
+		t_flag = 1;
+		cmd = "-t";
+	}
+	else if (strcmp(token, "-d") == MATCH) {
+		d_flag = 1;
+		cmd = "-d";
+	}
 	else {
 		fprintf(stderr, "Invalid instruction sequence: got %s\n", token);
 		exit(-1);
@@ -318,7 +329,6 @@ void validate_pf_number(u32 num_pf){
 }
 
 void validate_addr(char * token) {
-	printf("validating address\n");
 	if ( (strncmp(token, "0x", 2) == MATCH) &&
 		 (strlen(token) <= ADDR_STRING_LEN) ) {
 			 
@@ -433,10 +443,10 @@ void create_page_table(u16 pd_index, const char *rw)
 
 	if (strcmp (rw, "w") == MATCH){
 	   (PDBR + pd_index)->dirty = 1;
-	   printf(" get to dirty bit Pd\n");
+	   //printf(" get to dirty bit Pd\n");
     }
 	num_PD_entry++;
-    printf ("New Page Table added to PD as entry %d\n", pd_index);   
+    //printf ("New Page Table added to PD as entry %d\n", pd_index);   
 
 }
 
@@ -473,7 +483,7 @@ void create_user_page(u16 pd_index, u16 pt_index, const char *rw)
 	
 	if (strcmp (rw, "w")== MATCH){
 		((PF_t*) (page + pt_index*8))->dirty = 1;
-		 printf(" get to dirty bit IN pt \n");
+		 //printf(" get to dirty bit IN pt \n");
 	}	
     
 	//this is swap-in operation
@@ -641,15 +651,14 @@ void print_outputs()
 	printf( " Number of Pure Replacement: %d\n", num_pure_replace);
 	printf( "\n");
 	printf( " Number of Execution Cycles: %d\n", total_cycles);
+}
 
 
 void dump_vmm() {
 	int i,j;
 	PF_t * PT_base;
-	//int PT_base_addr;
-	
 	for (i=0; i < PF_SIZE; i++) {
-		if ((PDBR + i)->present == 1) {
+		if ((PDBR + i)->present != 0) {
 			printf("=========================================\n");
 			printf("      Page Directory Line # %04d\n", i);
 			printf("=========================================\n");
@@ -662,11 +671,11 @@ void dump_vmm() {
 			//printf("p = %d ",(PDBR + i)->present);
 			//printf("d = %d\n",(PDBR + i)->dirty);
 			
-			for (j=0; j < PF_SIZE; j++) {
-				if ( (PT_base + j)->present == 1 ) {
-					print_pf(PT_base + j);
-				}
-			}
+			//for (j=0; j < PF_SIZE; j++) {
+			//	if ( (PT_base + j)->present != 0 ) {
+			//		print_pf(PT_base + j);
+			//	}
+			//}
 			printf("\n\n");
 		}
 	}
