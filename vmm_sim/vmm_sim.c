@@ -71,8 +71,23 @@ u8	 t_flag;								// various debug flags
 u8	 d_flag;
 u8	 v_flag;
 
+
+/*		Global statistics trackers					*/
+u32	num_accesses;							
+u32 num_writes;
+u32	num_cycles;
+u32 num_cycles_no_vmm;
+u32 num_swap_ins;
+u32 num_swap_outs;
+u32 num_pure_replace;
+u32 used_pf;                         		// num_PD_entries_used;
+u32 num_PT_total;
+u32 num_PT_max;
+u32 num_UP_total;
+u32 num_UP_max;
+
 PF_t * PTBR;
-u32  used_pf   = 0;                         // tracking numbers of pf used
+
 
 
 /*		Function forward definitions		*/
@@ -82,6 +97,8 @@ void get_command(FILE *);
 void validate_pf_number(u32);
 void validate_addr(char *);
 void parse_addr(u32);
+void dump_command(void);
+void dump_vmm(void);
 int is_PT_present(u16);
 int is_UP_present(u16 pd_index, u16 pt_index);
 void create_page_table(u16 pd_index, const char* rw);
@@ -129,20 +146,23 @@ int main(int argc, char *argv[]){
 	init_PD();
 	
 	// loop through input file an feed commands to sim
-	//int count=1;
 	do {
-		//printf("getting command #%d \n",count++);
 		get_command(fp);
-		if (strcmp(cmd, "-v") == MATCH) {
+		
+		if (t_flag == 1) {
+			dump_command();
+		}
+		
+		if (v_flag == 1) {
 			printf("VMM Simulator Ver 0.1\n"); 
 			exit(-1);
 		}
 		else if (strcmp(cmd, "w") == MATCH || strcmp(cmd, "r") == MATCH ) {
 			parse_addr(addr);
-			printf("working address\n");
-			printf("\tPD %d\n", working_addr.PD_index );
-			printf("\tPT %d\n", working_addr.PT_index );
-			printf("\tOS %d\n", working_addr.UP_offset);
+			//printf("working address\n");
+			//printf("\tPD %d\n", working_addr.PD_index );
+			//printf("\tPT %d\n", working_addr.PT_index );
+			//printf("\tOS %d\n", working_addr.UP_offset);
 			
 			if (is_PT_present(working_addr.PD_index) == 1) {
 			    //check the user page present
@@ -166,7 +186,8 @@ int main(int argc, char *argv[]){
 			    create_user_page(working_addr.PD_index, working_addr.PT_index, cmd);
 			}   
 		}
-			
+		
+		if (d_flag == 1 && ( !strcmp(cmd,"r") || !strcmp(cmd,"w") )) {	dump_vmm(); }
 		
 	} while (strcmp (cmd, "EOF"));
 	//printf("Caught EOF, we are done here. G'night\n");
@@ -230,13 +251,17 @@ void get_command(FILE *fp){
 	static int rc;
 	
 	rc = fscanf(fp, "%s", token);
+	
+	//printf("in get command and t_flag = %d\n",t_flag);
 	//printf("just after fscanf, token = %8s \teof_valid = %d\n", token, eof_valid);
+	
+	
 	if (rc == EOF && !eof_valid) {
 		fprintf(stderr, "invalid EOF in input file; this is fatal\n");
 		exit (-1);	//PWL SHOULD DO CLEANUP BEFORE EXIT!!!!!!!!!!!!!!!!
 	}
 	else if (rc == EOF ) {
-		printf("rc = EOF\n");
+		//printf("rc = EOF\n");
 		cmd = "EOF";
 	}
 	else if (first_time && strcmp(token, "-p")== MATCH) {  			//strcmp returns 0 if match
@@ -270,9 +295,18 @@ void get_command(FILE *fp){
 		need_addr= 1;
 		get_command(fp);
 	}
-	else if (strcmp(token, "-v") == MATCH) {v_flag = 1;}
-	else if (strcmp(token, "-t") == MATCH) {t_flag = 1;}
-	else if (strcmp(token, "-d") == MATCH) {d_flag = 1;}
+	else if (strcmp(token, "-v") == MATCH) {
+		cmd = "-v";
+		v_flag = 1;
+	}
+	else if (strcmp(token, "-t") == MATCH) {
+		cmd = "-t";
+		t_flag = 1;
+	}
+	else if (strcmp(token, "-d") == MATCH) {
+		cmd = "-d";
+		d_flag = 1;
+	}
 	else {
 		fprintf(stderr, "Invalid instruction sequence: got %s\n", token);
 		exit(-1);
@@ -293,7 +327,7 @@ void validate_pf_number(u32 num_pf){
 }
 
 void validate_addr(char * token) {
-	printf("validating address\n");
+	//printf("validating address\n");
 	if ( (strncmp(token, "0x", 2) == MATCH) &&
 		 (strlen(token) <= ADDR_STRING_LEN) ) {
 			 
@@ -543,5 +577,39 @@ void evict_page()
 		((PF_t*) (PD + evict_PD_entry))->dirty    = 0;
 		used_pf --;
 	}
-	printf("number of frame used before evict %d\n", used_pf);
+
+	
+}
+
+void dump_command(){
+	if ( !strcmp(cmd, "r") || !strcmp(cmd, "w") ) {
+		printf("current command: %s %08X\n", cmd, addr);
+	}
+}
+
+void dump_vmm() {
+	int i,j;
+	int PT_base_addr;
+	
+	for (i=0; i < PF_SIZE; i++) {
+		if (PD[i].present != 0) {
+			PT_base_addr = PD[i].address;
+			printf("===============================================\n");
+			printf("PD index = %04d ", i);
+			printf("addr = 0x%08X ", PD[i].address);
+			printf("p = %d ",PD[i].present);
+			printf("d = %d\n",PD[i].dirty);
+			printf("================================================\n");
+			for (j=0; j < PF_SIZE; j++) {
+				if ( (*(PF_t*)(PT_base_addr)).present != 0 ) {
+					printf("\t\tPT_index = %d ",j);
+					printf("addr = 0x%08X ", (*(PF_t*)(PT_base_addr)).address);
+					printf("p = %d ",        (*(PF_t*)(PT_base_addr)).present);
+					printf("d = %d\n",       (*(PF_t*)(PT_base_addr)).dirty);
+				}
+				PT_base_addr ++;
+			}
+		}
+	}
+	printf("\n\n\n\n\n");
 }
