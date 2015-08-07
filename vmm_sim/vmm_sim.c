@@ -1,4 +1,4 @@
-/*
+/* Jeff
 ECE 587
 	Portland State University Summer 2015
 	Project 2: VMM simulator
@@ -67,9 +67,9 @@ u32  addr;									// address being simulated
 u32	 available_pf = 10;						// user specified number of pageframes (default = 10)
 PF_t PD[PF_SIZE];							// Page Directory
 VA_t working_addr;							// virtual address that is currently getting manipulated
-u8	 t_flag=0;								// various debug flags
-u8	 d_flag=0;
-u8	 v_flag=0;
+u8	 t_flag;								// various debug flags
+u8	 d_flag;
+u8	 v_flag;
 
 
 
@@ -86,10 +86,7 @@ u32 num_cycles_no_vmm;
 //u32 num_PT_max;
 //u32 num_UP_total;
 //u32 num_UP_max;
-
 PF_t * PDBR;
-
-
 u32  used_pf   = 0;                         // tracking numbers of pf used
 
 int total_cycles   = 0;
@@ -108,7 +105,6 @@ int num_swap_out= 0;
 int num_pure_replace = 0;
 
 int num_PD_entry = 0;
-
 
 
 
@@ -181,11 +177,6 @@ int main(int argc, char *argv[]){
 			if ( t_flag == 1 ){
 				printf(" %s 0x%08X\n", cmd, addr);
 			}
-			//printf("working address\n");
-			//printf("\tPD %d\n", working_addr.PD_index );
-			//printf("\tPT %d\n", working_addr.PT_index );
-			//printf("\tOS %d\n", working_addr.UP_offset);
-			
 			if (is_PT_present(working_addr.PD_index) == 1) {
 			    //check the user page present
 				if(is_UP_present(working_addr.PD_index, working_addr.PT_index) == 1)
@@ -243,7 +234,6 @@ void init_PD(){
 		(PDBR + i)->present  = 0;
 	}
 }
-
 
 
 
@@ -329,6 +319,7 @@ void validate_pf_number(u32 num_pf){
 }
 
 void validate_addr(char * token) {
+	//printf("validating address\n");
 	if ( (strncmp(token, "0x", 2) == MATCH) &&
 		 (strlen(token) <= ADDR_STRING_LEN) ) {
 			 
@@ -440,7 +431,6 @@ void create_page_table(u16 pd_index, const char *rw)
 	(PDBR + pd_index)->address = ((size_t)page);
 	(PDBR + pd_index)->present = 1;
 	
-
 	if (strcmp (rw, "w") == MATCH){
 	   (PDBR + pd_index)->dirty = 1;
 	   //printf(" get to dirty bit Pd\n");
@@ -470,7 +460,6 @@ void create_user_page(u16 pd_index, u16 pt_index, const char *rw)
 {
     size_t page;
 	
-
 	//track number of UP and max of UP
 	num_UP++;                           
 	if (num_UP > max_num_UP) max_num_UP = num_UP;
@@ -478,7 +467,7 @@ void create_user_page(u16 pd_index, u16 pt_index, const char *rw)
 	used_pf ++;     //tracking number of used page frame
 	
 	page = (PDBR + pd_index)->address;  //retrieve the pointer to PT
-
+	
 	((PF_t*) (page + pt_index*8))->present = 1 ;
 	
 	if (strcmp (rw, "w")== MATCH){
@@ -560,7 +549,7 @@ void evict_page()
 	
     //retrieve pointer to PT
 	page_addr =  ((PDBR+evict_PD_entry)->address);
-
+	
 	d_index = 0;
 	c_index = 0;
 	num_clean_pages = 0;
@@ -569,9 +558,9 @@ void evict_page()
 	//loop thr PT to search for UP to evict
 	for (i = 0; i < PF_SIZE ; i++)
 	{  
-	    if ( ((PF_t*)(page_addr+i*8))->present == 1)
+	    if ( ((PF_t*)(page_addr+i*sizeof(PF_t)))->present == 1)
 		{	
-		    if (((PF_t*)(page_addr+i*8))->dirty == 1)
+		    if (((PF_t*)(page_addr+i*sizeof(PF_t)))->dirty == 1)
 		    {
 			   evict_dirty_pages[d_index] = i;
 			   d_index++;
@@ -592,7 +581,7 @@ void evict_page()
 	if (num_clean_pages > 0)                         //evict clean page
 	{
 		evict_PT_entry = evict_clean_pages[rand() % num_clean_pages];
-		((PF_t*)(page_addr + evict_PT_entry))-> present = 0;    //clear the present bit in PT
+		((PF_t*)(page_addr + evict_PT_entry*sizeof(PF_t)))-> present = 0;    //clear the present bit in PT
 		printf("move the clean page \n");
 		used_pf --;       		                                //track number of frames
 		num_UP--;
@@ -619,6 +608,7 @@ void evict_page()
 		num_PD_entry--;                               //track number entry in PD
 		used_pf --;                                   //track number of frames 
 		num_PT --;                                    //PT removed
+		num_pure_replace++;                           //remove PT as pure replacement
 	}
 	else  //keep looping the until all the user pages removed
 		goto START;
@@ -657,13 +647,15 @@ void print_outputs()
 void dump_vmm() {
 	int i,j;
 	PF_t * PT_base;
+	
 	for (i=0; i < PF_SIZE; i++) {
 		if ((PDBR + i)->present != 0) {
 			printf("=========================================\n");
-			printf("      Page Directory Line # %04d\n", i);
+			printf("  PD Line #%04d", i);
+			print_pf(PDBR + i);
 			printf("=========================================\n");
-			//print_pf(PDBR + i);
-			//PT_base = (PF_t*)(PDBR + i)->address;
+			//printf("\n\n\n%d\n\n\n", (PDBR + i)->address);
+			PT_base = (PF_t*)((PDBR + i)->address);
 			
 			
 			//printf("PD index = %04d ", i);
@@ -671,11 +663,12 @@ void dump_vmm() {
 			//printf("p = %d ",(PDBR + i)->present);
 			//printf("d = %d\n",(PDBR + i)->dirty);
 			
-			//for (j=0; j < PF_SIZE; j++) {
-			//	if ( (PT_base + j)->present != 0 ) {
-			//		print_pf(PT_base + j);
-			//	}
-			//}
+			for (j=0; j < PF_SIZE; j++) {
+				if ( (PT_base + j)->present != 0 ) {
+					printf("\tPT Line #%04d ",j);
+					print_pf(PT_base + j);
+				}
+			}
 			printf("\n\n");
 		}
 	}
@@ -692,9 +685,10 @@ void print_pf(PF_t *pf){
 	int i;
 	
 	//for (i=0; i<PF_SIZE; i++) {
-		printf("\tPT Line #%4d address = 0x%08X d = %d p = %d\n",\
-			    i, pf->address, pf->dirty, pf->present);
+		printf("d = %d p = %d\n", pf->dirty, pf->present);
 	//}
 	//printf("\n\n");
 
 }
+
+
