@@ -410,7 +410,7 @@ void create_page_table(u16 pd_index, const char *rw)
 	if (strcmp (rw, "w") == MATCH)
 	   (PDBR + pd_index)->dirty = 1;
    
-    printf ("New Page Table added to PD as entry %d\n", pd_index);   
+    printf ("New Page Table added to PD as entry %d\n", pd_index);
     //CALL swapin;
 }
 
