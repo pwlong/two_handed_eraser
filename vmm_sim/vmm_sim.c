@@ -2,6 +2,7 @@
 ECE 587
 	Portland State University Summer 2015
 	Project 2: VMM simulator
+	Version v0.1
 	
 	Jeff Nguyen <jqn@pdx.edu>
 	Paul Long	<paul@thelongs.ws>
@@ -21,9 +22,7 @@ ECE 587
 /*		Constants							*/
 #define PF_SIZE			1024				// 1k pageframes
 #define ADDR_SIZE_BITS	32
-//#define ADDR_STRING_LEN	((ADDR_SIZE_BITS >> 3) + 2)
 #define ADDR_STRING_LEN 10
-//#define MAX_PF			((1<<ADDR_SIZE_BITS)/PF_SIZE)
 #define MAX_PF			4194304
 #define MIN_PF			3
 #define MATCH			0
@@ -76,16 +75,8 @@ u8	 v_flag;
 /*		Global statistics trackers					*/
 u32	num_accesses;							
 u32 num_writes;
-//u32	num_cycles;
 u32 num_cycles_no_vmm;
-//u32 num_swap_ins;
-//u32 num_swap_outs;
-//u32 num_pure_replace;
-//u32 used_pf;                         		// num_PD_entries_used;
-//u32 num_PT_total;
-//u32 num_PT_max;
-//u32 num_UP_total;
-//u32 num_UP_max;
+
 PF_t * PDBR;
 u32  used_pf   = 0;                         // tracking numbers of pf used
 
@@ -139,7 +130,9 @@ int main(int argc, char *argv[]){
 	while ((opt = getopt(argc, argv, "i:p:")) != -1) {
 		switch(opt) {
 			case 'i':	strcpy(filename, optarg); break;
-			case 'p':	break;// PWL THIS DOESNT DO ANYTHING YET!!!!!!!!!!!!!!!!!!!!!!!!
+			case 'p':	available_pf = (u32) strtol(optarg,NULL,10);
+						validate_pf_number(available_pf);
+						break;
 			case '?': 
 						if (optopt == 'i'){
 							printf("USAGE: -i <filename>\n\n");
@@ -236,7 +229,18 @@ void init_PD(){
 }
 
 
-
+/*	
+*	Function: get_command
+*	
+*	Description:	Parses input file and return valid commands and 
+*					and or address to global variables. validates data
+*					before filling globals
+*					
+*	
+*	Inputs: filepointer to infile
+*
+*   Outputs: None
+*/
 void get_command(FILE *fp){
 	static int first_time = 1;
 	static int eof_valid  = 0;
@@ -247,17 +251,15 @@ void get_command(FILE *fp){
 	static int rc;
 	
 	rc = fscanf(fp, "%s", token);
-	//printf("just after fscanf, token = %8s \teof_valid = %d\n", token, eof_valid);
 	if (rc == EOF && !eof_valid) {
 		fprintf(stderr, "invalid EOF in input file; this is fatal\n");
-		exit (-1);	//PWL SHOULD DO CLEANUP BEFORE EXIT!!!!!!!!!!!!!!!!
+		exit (-1);
 	}
 	else if (rc == EOF ) {
 		//printf("rc = EOF\n");
 		cmd = "EOF";
 	}
 	else if (first_time && strcmp(token, "-p")== MATCH) {  			//strcmp returns 0 if match
-		//printf("first_time = %d token = %s\n", first_time, token);
 		cmd = "p";
 		first_time = 0;						// clear first time flag cause we have been here already
 		need_num_pages = 1;					// set flag to require a pagenumber next in input file
@@ -307,17 +309,35 @@ void get_command(FILE *fp){
 		
 	first_time = 0;
 }
-
+/*	
+*	Function: validate_pf_number
+*	
+*	Description: Validates user-supplied spec for number of page frames
+*	
+*	Inputs: u32 number to validate
+*
+*   Outputs: exits if invalid
+*/
 void validate_pf_number(u32 num_pf){
 	if (num_pf < MIN_PF || num_pf > MAX_PF) {
 		fprintf(stderr, "Invalid number of PF specified\n");
 		fprintf(stderr, "Must be between %u and %u ", MIN_PF, MAX_PF);
 		fprintf(stderr, "but %u was specified\n", num_pf);
 		fprintf(stderr, "this is fatal: quitting\n");
-		exit(-1);//PWL DO CLEANUP BEFORE EXIT!!!!!!!!!!!!!!!!
+		exit(-1);
 	}
 }
 
+
+/*	
+*	Function: validate_addr
+*	
+*	Description: Validates address from input file meets spec
+*	
+*	Inputs: pointer to token containg address to validate
+*
+*   Outputs: exits if invalid
+*/
 void validate_addr(char * token) {
 	//printf("validating address\n");
 	if ( (strncmp(token, "0x", 2) == MATCH) &&
@@ -328,7 +348,7 @@ void validate_addr(char * token) {
 		fprintf(stderr, "illegal address specified\n");
 		fprintf(stderr, "valid address is of the form 0xffffffff\n");
 		fprintf(stderr, "%s was specified\n", token);
-		exit(-1);//PWL DO CLEANUP BEFORE EXIT!!!!!!!!!!!!!!!!
+		exit(-1);
 	}
 }
 
@@ -583,7 +603,7 @@ void evict_page()
 		evict_PT_entry = evict_clean_pages[rand() % num_clean_pages];
 		((PF_t*)(page_addr + evict_PT_entry*sizeof(PF_t)))-> present = 0;    //clear the present bit in PT
 		printf("move the clean page \n");
-		used_pf --;       		                                //track number of frames
+		used_pf --;       		                      //track number of frames
 		num_UP--;
 		num_pure_replace++;
 	}
@@ -656,13 +676,7 @@ void dump_vmm() {
 			printf("=========================================\n");
 			//printf("\n\n\n%d\n\n\n", (PDBR + i)->address);
 			PT_base = (PF_t*)((PDBR + i)->address);
-			
-			
-			//printf("PD index = %04d ", i);
-			//printf("addr = 0x%08X ", (PDBR + i)->address);
-			//printf("p = %d ",(PDBR + i)->present);
-			//printf("d = %d\n",(PDBR + i)->dirty);
-			
+
 			for (j=0; j < PF_SIZE; j++) {
 				if ( (PT_base + j)->present != 0 ) {
 					printf("\tPT Line #%04d ",j);
@@ -678,16 +692,12 @@ void dump_vmm() {
 /*	Simple print out of a page frame
 
 	Takes a pointer to the PF
-	Interates through each line of the PF
-	Prints out the all members of the struct 
+	 
 */
 void print_pf(PF_t *pf){
-	int i;
-	
-	//for (i=0; i<PF_SIZE; i++) {
-		printf("d = %d p = %d\n", pf->dirty, pf->present);
-	//}
-	//printf("\n\n");
+
+	printf("d = %d p = %d\n", pf->dirty, pf->present);
+
 
 }
 
