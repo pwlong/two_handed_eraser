@@ -1,7 +1,46 @@
 all:
-	gcc -g vmm_sim.c -o sim
+	gcc -g vmm_sim.c -o sim -w
+
+run: clean all
+	echo >> output.txt
+	echo >> output.txt
+	echo ======stim1.txt====== >> output.txt
+	./sim -i stim1.txt       >> output.txt
+	echo >> output.txt
+	echo >> output.txt
+	echo ======stim2.txt====== >> output.txt
+	./sim  -i stim2.txt  >> output.txt
+	echo >> output.txt
+	echo >> output.txt
+	echo ======stim3.txt====== >> output.txt
+	./sim  -i stim3.txt  >> output.txt
+	echo >> output.txt
+	echo >> output.txt
+	echo ======stim4.txt====== >> output.txt
+	./sim  -i stim4.txt  >> output.txt
+	echo >> output.txt
+	echo >> output.txt
+	echo ======nstim5.txt====== >> output.txt
+	./sim  -i stim5.txt  >> output.txt
+	echo >> output.txt
+	echo >> output.txt
+	echo ======stim6.txt====== >> output.txt
+	./sim  -i stim6.txt  >> output.txt
+	echo >> output.txt
+	echo >> output.txt
+	echo ======stim7.txt====== >> output.txt
+	./sim  -i stim7.txt  >> output.txt
+	echo >> output.txt
+	echo >> output.txt
+	echo ======stim8.txt====== >> output.txt
+	./sim  -i stim8.txt  >> output.txt
+	echo >> output.txt
+	echo >> output.txt
+	echo ======stim9.txt====== >> output.txt
+	./sim  -i stim9.txt  >> output.txt
+
 
 
 
 clean:
-	rm -f a.out sim *.log out logs/*.log *.zip out
+	rm -f a.out sim *.log out logs/*.log *.zip out output.txt

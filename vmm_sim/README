@@ -1,2 +1,4 @@
 This is the working tree for ece587 project 2 VMM simulator. Summer 2015
 Paul Long <paul@thelongs.ws>
+
+to build the project and produce output file execute the file "run"
