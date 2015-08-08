@@ -4,4 +4,4 @@ all:
 
 
 clean:
-	rm -f a.out sim *.log out logs/*.log *.zip
+	rm -f a.out sim *.log out logs/*.log *.zip out
