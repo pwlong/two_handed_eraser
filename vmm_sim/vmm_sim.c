@@ -648,13 +648,13 @@ void print_outputs()
 	printf( " Number of Reads            : %d \n", num_reads);
 	printf( " Number of Writes           : %d \n", num_writes);
 	printf( " Number of Execution Cycles : %d \n", total_cycles);
-	printf( " Number of cycles w/o VMM   : %d \n", num_accesses); ///??? is this right
+	printf( " Number of cycles w/o VMM   : %d \n", num_accesses * 20); 
 	printf( " Number of swap-in          : %d \n", num_swap_in);
 	printf( " Number of swap-out         : %d \n", num_swap_out);
 	printf( " Number of Pure Replacement : %d\n", num_pure_replace);
 	printf( " Number of PD Entries       : %d \n", num_PD_entry);
 	printf( " Number of Page Tables      : %d \n", num_PT);
-	printf( " Max Number of Page Tables: %d \n", max_num_PT);
+	printf( " Max Number of Page Tables  : %d \n", max_num_PT);
 	printf( " Number of User Pages       : %d \n", num_UP);
 	printf( " Max Number of User Pages   : %d \n", max_num_UP);
 	printf( " Number of Physical Frames  : %d \n", num_physical_frames);
