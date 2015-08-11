@@ -65,6 +65,7 @@ char *cmd ;									// command being simulated
 u32  addr;									// address being simulated
 u32	 available_pf = 10;						// user specified number of pageframes (default = 10)
 PF_t PD[PF_SIZE];							// Page Directory
+PF_t * PDBR;
 VA_t working_addr;							// virtual address that is currently getting manipulated
 u8	 t_flag;								// various debug flags
 u8	 d_flag;
@@ -75,26 +76,18 @@ u8	 v_flag;
 /*		Global statistics trackers					*/
 u32	num_accesses;							
 u32 num_writes;
+u32 num_reads;
 u32 num_cycles_no_vmm;
-
-PF_t * PDBR;
-u32  used_pf   = 0;                         // tracking numbers of pf used
-
+u32 used_pf   = 0;							// tracking numbers of pf used
 int total_cycles   = 0;
-
-int num_PT     = 0;                          //number of PT and max number of PT
-int max_num_PT = 0;                          //was used
-
-int num_UP     = 0;                          //number of UP and max number of UP 
-int max_num_UP = 0;                          //was used
-
+int num_PT     = 0;							//number of PT and max number of PT
+int max_num_PT = 0;                         //was used
+int num_UP     = 0;                         //number of UP and max number of UP 
+int max_num_UP = 0;                         //was used
 int num_physical_frames = 0;
-
-int num_swap_in = 0;                         //number of swap-in and out ops
+int num_swap_in = 0;                        //number of swap-in and out ops
 int num_swap_out= 0;
-
 int num_pure_replace = 0;
-
 int num_PD_entry = 0;
 
 
@@ -166,6 +159,11 @@ int main(int argc, char *argv[]){
 			exit(-1);
 		}
 		else if (strcmp(cmd, "w") == MATCH || strcmp(cmd, "r") == MATCH ) {
+			// update read/wrote/access statistics
+			num_accesses ++;
+			if (strcmp(cmd, "w") == MATCH) {num_writes ++;}
+			else                           {num_reads ++;}
+			
 			parse_addr(addr);
 			if ( t_flag == 1 ){
 				printf(" %s 0x%08X\n", cmd, addr);
@@ -646,21 +644,22 @@ void evict_page()
 */
 void print_outputs()
 {
-	printf( " Number of PD Entries     : %d \n", num_PD_entry);
-	printf( "\n");
-	printf( " Number of Page Tables    : %d \n", num_PT);
+	printf( " Number of Accesses         : %d \n", num_accesses);
+	printf( " Number of Reads            : %d \n", num_reads);
+	printf( " Number of Writes           : %d \n", num_writes);
+	printf( " Number of Execution Cycles : %d \n", total_cycles);
+	printf( " Number of cycles w/o VMM   : %d \n", num_accesses); ///??? is this right
+	printf( " Number of swap-in          : %d \n", num_swap_in);
+	printf( " Number of swap-out         : %d \n", num_swap_out);
+	printf( " Number of Pure Replacement : %d\n", num_pure_replace);
+	printf( " Number of PD Entries       : %d \n", num_PD_entry);
+	printf( " Number of Page Tables      : %d \n", num_PT);
 	printf( " Max Number of Page Tables: %d \n", max_num_PT);
-	printf( "\n");
-	printf( " Number of User Pages     : %d \n", num_UP);
-	printf( " Max Number of User Pages : %d \n", max_num_UP);
-	printf( "\n");
-	printf( " Number of Physical Frames: %d \n", num_physical_frames);
-	printf( "\n");
-	printf( " Number of swap-in        : %d \n", num_swap_in);
-	printf( " Number of swap-out       : %d \n", num_swap_out);
-	printf( " Number of Pure Replacement: %d\n", num_pure_replace);
-	printf( "\n");
-	printf( " Number of Execution Cycles: %d\n", total_cycles);
+	printf( " Number of User Pages       : %d \n", num_UP);
+	printf( " Max Number of User Pages   : %d \n", max_num_UP);
+	printf( " Number of Physical Frames  : %d \n", num_physical_frames);
+
+	
 }
 
 
