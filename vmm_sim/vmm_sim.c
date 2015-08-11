@@ -531,9 +531,6 @@ void evict_page()
 	evict_PT_entry = 0;
 	
 	
-	//printf ("evict page \n");
-	
-	
 	//search in PD for present PT, categoried into dirty and clean
 	for (i = 0; i < PF_SIZE; i++)
 	{   
@@ -593,8 +590,6 @@ void evict_page()
 		}	
 	}  //end PT for loop search
 		
-	//printf("number dirty page %d \n", num_dirty_pages);
-	//printf("number clean page %d \n", num_clean_pages);
 	
 	if (num_clean_pages > 0)                         //evict clean page
 	{
@@ -610,7 +605,7 @@ void evict_page()
 		evict_PT_entry = evict_dirty_pages[rand() % num_dirty_pages];
 		((PF_t*)(page_addr + evict_PT_entry))-> present = 0;
 		((PF_t*)(page_addr + evict_PT_entry))-> dirty   = 0;
-		//printf("move the dirty page \n");
+		
 		used_pf --;                                  //track number of frames
 		total_cycles +=50000;                        //swap-out cycles
 		num_UP--;
@@ -620,9 +615,10 @@ void evict_page()
 	                                                 //have any user page left
 	{  //evic its own PT	
 		//clear the entry in PD
-		((PF_t*) (PD + evict_PD_entry))->present  = 0;
-		((PF_t*) (PD + evict_PD_entry))->dirty    = 0;
-		//printf ("move the pt\n");
+		((PF_t*) (PDBR + evict_PD_entry))->present  = 0;
+		((PF_t*) (PDBR + evict_PD_entry))->dirty    = 0;
+		
+		free ((void *) page_addr);                    //delocate mem for page table
 		num_PD_entry--;                               //track number entry in PD
 		used_pf --;                                   //track number of frames 
 		num_PT --;                                    //PT removed
